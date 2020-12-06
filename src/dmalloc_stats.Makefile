@@ -1,13 +1,5 @@
 # -*- MakeFile -*-
 
-uname := $(shell uname -s)
-ifeq ($(uname), Linux)
-   os    = LINUX
-endif
-ifeq ($(uname), Darwin)
-   os    = Darwin
-endif
-
 sources := dmalloc_stats.cpp
 objects := $(sources:.cpp=.o)
 depends := $(objects:.o=.d)
@@ -15,7 +7,7 @@ depends := $(objects:.o=.d)
 target := stats-unit_test
 
 %.o:%.cpp
-	g++ -std=c++14 -g -Wall -Wextra -Werror -D DMALLOC_UNIT_STATS -D $(os) -c $< -o $@
+	g++ -std=c++14 -g -Wall -Wextra -Werror -c $< -o $@
 	@gcc -MM $*.cpp > $*.d
 
 $(target):$(objects)

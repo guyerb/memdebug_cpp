@@ -1,7 +1,7 @@
 # -*- MakeFile -*-
 # unit tests for the unit tests
 
-sources := ut.cpp
+sources := unit_test.cpp
 objects := $(sources:.cpp=.o)
 depends := $(objects:.o=.d)
 
