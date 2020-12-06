@@ -2,11 +2,11 @@
 # unit test for unit test itself
 #
 
-sources := unit_test.cpp
+sources := unit_test_cookies.cpp
 objects := $(sources:.cpp=.o)
 depends := $(objects:.o=.d)
 
-target := unit_test
+target := unit_test_cookies
 
 %.o:%.cpp
 	g++ -std=c++14 -g -Wall -Wextra -Werror -c $< -o $@

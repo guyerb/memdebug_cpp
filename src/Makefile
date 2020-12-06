@@ -16,7 +16,7 @@ ifeq ($(uname), Darwin)
 endif
 
 %.o:%.cpp
-	g++ -g -std=c++14 -Wall -Wextra -D DMALLOC_DEBUG -D $(os) -c  $<  -fPIC  -o $@
+	g++ -g -std=c++14 -Wall -Wextra -D $(os) -c  $<  -fPIC  -o $@
 	@g++ -MM $*.cpp > $*.d
 
 $(target): $(objects)

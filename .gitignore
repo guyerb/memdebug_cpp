@@ -1,2 +1,6 @@
 *~
+*.so
+*.o
+*.d
+*.dylib
 cscope*

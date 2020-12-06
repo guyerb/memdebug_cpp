@@ -10,11 +10,11 @@ ifeq ($(uname), Darwin)
 endif
 
 
-%.o: %.c
-	gcc -g -std=c99 -Wall -Wextra  -c $<  -o $@
+%.o: %.cpp
+	g++ -g -std=c++17 -Wall -Wextra  -c $<  -o $@
 
 $(target): checks.o
-	gcc -g   $^ -lpthread -o $@
+	g++ -g   $^ -pthread -o $@
 
 check: $(target)
 	@echo run with injected malloc calls
