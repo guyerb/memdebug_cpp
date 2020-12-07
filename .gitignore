@@ -4,3 +4,4 @@
 *.d
 *.dylib
 cscope*
+.DS_Store

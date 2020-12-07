@@ -6,7 +6,7 @@ depends := $(objects:.o=.d)
 uname := $(shell uname -s)
 ifeq ($(uname), Linux)
 	os = LINUX
-	sources += dmalloc_intercept_linux.cpp libc_wrappers_linux.cpp
+	sources += dmalloc_intercept_linux.cpp libc_wrapper.cpp
 	target = libdmalloc.so
 endif
 ifeq ($(uname), Darwin)
@@ -27,6 +27,9 @@ check: $(target)
 # don't remove libs on clean so we can build for multiple arch, see distclean
 clean:
 	rm -f $(objects) $(depends) $(target) *~
+	make -f unit_test.Makefile clean
+	make -f unit_test_cookie.Makefile clean
+	make -f unit_test_stat.Makefile clean
 
 distclean: clean
 	rm -f *.dylib *.so

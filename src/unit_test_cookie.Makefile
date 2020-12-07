@@ -1,10 +1,12 @@
 # -*- MakeFile -*-
+# unit test for storing/retrieving/verifyin cookie
+#
 
-sources := dmalloc_stats.cpp
+sources := unit_test_cookie.cpp
 objects := $(sources:.cpp=.o)
 depends := $(objects:.o=.d)
 
-target := stats-unit_test
+target := unit_test_cookie
 
 %.o:%.cpp
 	g++ -std=c++14 -g -Wall -Wextra -Werror -c $< -o $@
@@ -15,7 +17,6 @@ $(target):$(objects)
 
 clean:
 	rm -f *.o *.d *~ $(target)
-
 
 -include $(depends)
 
