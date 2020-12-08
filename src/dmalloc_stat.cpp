@@ -275,7 +275,7 @@ int main()
       std::cout << i << ' ';
       population += i;
   }
-  std::cout << endl;
+  std::cout << std::endl;
   ut.ut_check("age bucket population", (unsigned)0, population);
 
   population = 0;
@@ -283,7 +283,7 @@ int main()
     std::cout << i << ' ';
     population += i;
   }
-  std::cout << endl;
+  std::cout << std::endl;
   ut.ut_check("size bucket population", (unsigned)0, population);
   ut.ut_finish_section();
   ut.ut_finish_unit();

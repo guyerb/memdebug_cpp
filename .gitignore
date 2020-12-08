@@ -5,3 +5,6 @@
 *.dylib
 cscope*
 .DS_Store
+unit_test_cookie
+unit_test_stat
+
