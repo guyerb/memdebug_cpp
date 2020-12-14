@@ -41,12 +41,13 @@ void dmalloc_stat::_agebucket_update(std::time_t now)
     std::vector<int>::size_type dst_ndx = src_ndx + elapsed;
     unsigned src_val = _s_agebucket[src_ndx];
 
-    if (src_ndx == _s_agebucket.size()) continue;	/* bucket doesn't update */
+    if (src_ndx == (_s_agebucket.size() - 1)) continue;	/* doesn't update */
     _s_agebucket[src_ndx] = 0;
-    if (dst_ndx >= _s_agebucket.size())
+    if (dst_ndx >= _s_agebucket.size() - 1) {
       _s_agebucket[_s_agebucket.size() - 1] += src_val;
-    else
+    } else {
       _s_agebucket[dst_ndx] = src_val;
+    }
   }
 }
 
@@ -105,7 +106,7 @@ void dmalloc_stat::free(std::size_t sz, std::time_t now, std::time_t birth)
 
   if ((_s_curr_bytes >= sz) &&  _s_szebucket[ndx]) {
     _s_curr_bytes -= sz;
-    _s_curr_alloc --;
+    _s_curr_alloc--;
     _s_szebucket[ndx]--;
     agebucket_delete(now, birth);
   } else {
@@ -211,6 +212,7 @@ int main()
   ut.ut_check("age  bucket 1",  (unsigned)15, stat._s_agebucket[1]);
   ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
   ut.ut_check("alltime allocations", (unsigned)16, stat._s_allt_alloc);
+
   stat.alloc(8192, t_999);
   bytes += 8192;
   ut.ut_mark("mark 3");
@@ -218,12 +220,15 @@ int main()
   ut.ut_check("age  bucket 0",   (unsigned)1, stat._s_agebucket[0]);
   ut.ut_check("age  bucket 998", (unsigned)1, stat._s_agebucket[998]);
   ut.ut_check("age  bucket 999", (unsigned)15, stat._s_agebucket[999]);
+
   stat.alloc(8192, t_1500);
   bytes += 8192;
   ut.ut_mark("mark 4");
   ut.ut_check("size bucket 11",  (unsigned)5, stat._s_szebucket[BUCKET_4096]);
   ut.ut_check("age  bucket 0",   (unsigned)1, stat._s_agebucket[0]);
+  ut.ut_check("age  bucket 501",   (unsigned)1, stat._s_agebucket[501]);
   ut.ut_check("age  bucket 999", (unsigned)16, stat._s_agebucket[999]);
+
   stat.alloc(8192, t_2000);
   bytes += 8192;
   ut.ut_mark("mark 5");
@@ -233,12 +238,13 @@ int main()
   ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
   ut.ut_check("alltime allocations", (unsigned)19, stat._s_curr_alloc);
   ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)19, stat._s_allt_alloc);
+  ut.ut_check("current allocations", (unsigned)19, stat._s_curr_alloc);
 
   stat.free(bytes * 2, t_2000, t_0);
   ut.ut_mark("mark 6");
   ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)12, stat._s_allt_alloc);
+  ut.ut_check("alltime allocations", (unsigned)19, stat._s_allt_alloc);
+  ut.ut_check("current allocations", (unsigned)19, stat._s_curr_alloc);
   ut.ut_check("size underrun", (unsigned)1, (unsigned)stat._s_underrun_bytes);
   stat.free(8192, t_2000, t_2000);
   stat.free(8192, t_2000, t_1500);
@@ -249,7 +255,8 @@ int main()
   stat.free(4096, t_2000, t_0);
   bytes -= 4096;
   ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)12, stat._s_allt_alloc);
+  ut.ut_check("alltime allocations", (unsigned)19, stat._s_allt_alloc);
+  ut.ut_check("current allocations", (unsigned)13, stat._s_curr_alloc);
   ut.ut_check("age  bucket 999", (unsigned)13, stat._s_agebucket[999]);
   ut.ut_check("age  bucket 0", (unsigned)0, stat._s_agebucket[0]);
   stat.free(4096, t_2000, t_0);
@@ -269,7 +276,8 @@ int main()
   stat.free(1, t_2000, t_0);
   stat.free(0, t_2000, t_0);
   ut.ut_check("current allocated bytes", (unsigned)0, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)12, stat._s_allt_alloc);
+  ut.ut_check("alltime allocations", (unsigned)19, stat._s_allt_alloc);
+  ut.ut_check("current allocations", (unsigned)0, stat._s_curr_alloc);
   ut.ut_check("age bucket 999", (unsigned)0, stat._s_agebucket[999]);
   ut.ut_check("age bucket 0", (unsigned)0, stat._s_agebucket[0]);
 
