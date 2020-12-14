@@ -1,5 +1,4 @@
 /* dmalloc: a simple malloc debugging library.
- *
  *  - gather stats on usage
  *  - print those stats to stderr opportunistically
  */
@@ -7,8 +6,7 @@
 
 #include "dmalloc_logs.h"
 #include "dmalloc_cookie.h"
-#include "libc_wrappers.h"
-
+#include "libc_wrappers.h
 #ifdef DMALLOC_PASSTHROUGH
 void * dmalloc_calloc(size_t count, size_t size)
 {
@@ -54,7 +52,7 @@ void * dmalloc_calloc_intercept(size_t count, size_t size)
 void dmalloc_free_intercept(void *ptr)
 {
   dmalloc_cookie cookie;
-  
+
   dputc('f', stderr);
   if (cookie.ours(ptr)) {
     dmalloc_stats_free(dmalloc_size_get(ptr), time(NULL), \

@@ -31,6 +31,8 @@ class unit_test {
 
   void ut_header(std::string prefix, std::string descr, char delim);
 
+  void ut_mark(std::string mark) {std::cout << mark << std::endl; }
+
   template <class T>
   void ut_check(std::string descr, T, T);
 

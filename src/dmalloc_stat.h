@@ -34,7 +34,6 @@ class dmalloc_stat {
   unsigned _s_underrun_age {0};
   unsigned _s_underrun_bytes {0};
   unsigned _s_errorlock {0};
-  unsigned _s_declined_update {0};
   unsigned _s_invalid_birthday {0};
 
   int  _agebucket_ndx(std::time_t now, std::time_t birth);
