@@ -13,6 +13,8 @@ enum bucket_index {
 constexpr std::vector<unsigned>::size_type  sizesz =  1000;
 constexpr std::vector<unsigned>::size_type  agesz =  12;
 
+extern class dmalloc_stat stat;
+
 class dmalloc_stat {
 
 #ifdef DMALLOC_UNIT_TEST

@@ -3,10 +3,13 @@
  *  - print those stats to stderr opportunistically
  */
 #include <cstdlib>
+#include <ctime>
 
-#include "dmalloc_logs.h"
+#include "dmalloc_log.h"
 #include "dmalloc_cookie.h"
-#include "libc_wrappers.h
+#include "dmalloc_stat.h"
+#include "libc_wrapper.h"
+
 #ifdef DMALLOC_PASSTHROUGH
 void * dmalloc_calloc(size_t count, size_t size)
 {
@@ -34,67 +37,66 @@ void * dmalloc_realloc(void *ptr, size_t size)
 }
 #else  // DMALLOC_PASSTHROUGH
 
-void * dmalloc_calloc_intercept(size_t count, size_t size)
+void * dmalloc_calloc(size_t count, size_t size)
 {
   void *ptr = NULL;
-  time_t now = time(NULL);
+  std::time_t now = time(NULL);
   dmalloc_cookie cookie;
 
-  dputc('c', stderr);
-  ptr = libc_calloc_wrapper(count, size + DSIZE);
+  dputc('c');
+  ptr = libc_calloc_wrapper(count, size + cookie.size());
   if (ptr) {
     ptr = cookie.cookie(ptr, now, size);
-    dmalloc_stats_alloc(size, now);
+    stat.alloc(size, now);
   }
   return ptr;
 }
 
-void dmalloc_free_intercept(void *ptr)
+void dmalloc_free(void *ptr)
 {
+  std::time_t now = std::time(NULL);
   dmalloc_cookie cookie;
 
-  dputc('f', stderr);
+  dputc('f');
   if (cookie.ours(ptr)) {
-    dmalloc_stats_free(dmalloc_size_get(ptr), time(NULL), \
-		       dmalloc_birthday_get(ptr));
+    stat.free(cookie.bytes(ptr), now, cookie.birthday(ptr));
     ptr = cookie.base(ptr);
   }
   libc_free_wrapper(ptr);
   return;
 }
 
-void * dmalloc_malloc_intercept(size_t size)
+void * dmalloc_malloc(size_t size)
 {
   dmalloc_cookie cookie;
-  time_t now = time(NULL);
+  std::time_t now = time(NULL);
   void *ptr;
 
-  dputc('m', stderr);
-  ptr = libc_malloc_wrapper(size + DSIZE);
+  dputc('m');
+  ptr = libc_malloc_wrapper(size + cookie.size());
   if (ptr) {
     ptr = cookie.cookie(ptr, now, size);
-    dmalloc_stats_alloc(size, now);
+    stat.alloc(size, now);
   }
   return ptr;
 }
 
-void * dmalloc_realloc_intercept(void *ptr, size_t size)
+void * dmalloc_realloc(void *ptr, size_t size)
 {
   void *p;
-  time_t now = time(NULL);
+  std::time_t now = std::time(NULL);
   dmalloc_cookie cookie;
 
-  dputc('r', stderr);
-  if (ptr && dmalloc_ptr_ours(ptr)) {
-    dmalloc_stats_free(cookie.bytes(ptr), time(NULL),	\
-		       cookie.birthday(ptr));
+  dputc('r');
+  if (ptr && cookie.ours(ptr)) {
+    stat.free(cookie.bytes(ptr), now, cookie.birthday(ptr));
     ptr = cookie.base(ptr);
   }
 
-  p = libc_realloc_wrapper(ptr, size + cookies.size());
+  p = libc_realloc_wrapper(ptr, size + cookie.size());
   if (p) {
     p = cookie.cookie(p, now, size);
-    dmalloc_stats_alloc(size, now);
+    stat.alloc(size, now);
   }
   return p;
 }

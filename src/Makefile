@@ -1,5 +1,5 @@
 # -*- MakeFile -*-
-sources := dmalloc.cpp
+sources := dmalloc.cpp dmalloc_stat.cpp
 objects = $(sources:.cpp=.o)
 depends := $(objects:.o=.d)
 
@@ -16,7 +16,7 @@ ifeq ($(uname), Darwin)
 endif
 
 %.o:%.cpp
-	g++ -g -std=c++14 -Wall -Wextra -D $(os) -c  $<  -fPIC  -o $@
+	g++ -g -std=c++17 -Wall -Wextra -D $(os) -c  $<  -fPIC  -o $@
 	@g++ -MM $*.cpp > $*.d
 
 $(target): $(objects)
@@ -27,9 +27,9 @@ check: $(target)
 # don't remove libs on clean so we can build for multiple arch, see distclean
 clean:
 	rm -f $(objects) $(depends) $(target) *~
-	make -f unit_test.Makefile clean
-	make -f unit_test_cookie.Makefile clean
-	make -f unit_test_stat.Makefile clean
+	make -f Makefile.unit_test clean
+	make -f Makefile.unit_test_cookie clean
+	make -f Makefile.unit_test_stat clean
 
 distclean: clean
 	rm -f *.dylib *.so
