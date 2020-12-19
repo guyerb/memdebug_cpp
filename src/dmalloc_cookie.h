@@ -5,7 +5,7 @@ class dmalloc_cookie {
  private:
   /* | MAGIC | TSTAMP | SIZE | USER DATA | */
   const uint32_t _magic = {0xDACABEEF};
-  const uint32_t _msize = {_magic};
+  const uint32_t _msize = {sizeof(_magic)};
   const uint32_t _tsize = {sizeof(std::time_t)};
   const uint32_t _ssize = {sizeof(std::size_t)};
   const uint32_t _csize = {_msize + _tsize + _ssize};

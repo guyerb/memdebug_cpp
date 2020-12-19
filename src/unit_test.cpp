@@ -24,11 +24,11 @@ int main()
   ut.ut_check("ut_check self test tm", now, now);
   ut.ut_check_ne("ut_check self test != tm", now, now + 1);
   ut.ut_check("ut_check self test str", "a string", "a string");
-  ut.ut_check("ut_check self test str", "a string", "b string");
   ut.ut_check_ne("ut_check self test != str", "a string", "b string");
   ut.ut_finish_section();
 
   ut.ut_start_section("fail checks");
+  ut.ut_check("ut_check self test str", "a string", "b string");
   ut.ut_check("ut_check self int fail", 1, 0);
   ut.ut_check("ut_check self int fail", 0, 1);
   ut.ut_check("ut_check self test tm", now, now + 1);
