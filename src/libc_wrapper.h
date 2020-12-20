@@ -1,5 +1,5 @@
-#ifndef LIBC_WRAPPERS_H
-#define LIBC_WRAPPERS_H
+#ifndef LIBC_WRAPPER_H
+#define LIBC_WRAPPER_H
 
 #include <cstdlib>
 
@@ -14,7 +14,7 @@ extern void * libc_realloc_wrapper(void *, size_t);
 #define libc_calloc_wrapper		calloc
 #define libc_free_wrapper		free
 #define libc_malloc_wrapper		malloc
-#define libc_realloc_wrapper		realloc
+#define libc_realloc_wrapper	realloc
 #endif
 
-#endif	/* LIBC_WRAPPERS_H */
+#endif	/* LIBC_WRAPPER_H */
