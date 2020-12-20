@@ -20,7 +20,6 @@ class dmalloc_stat {
 #ifdef DMALLOC_UNIT_TEST
  public:
 #endif
-  std::mutex _s_m;
 
   unsigned _s_curr_bytes {0};
   unsigned _s_curr_alloc {0};
@@ -38,18 +37,21 @@ class dmalloc_stat {
   unsigned _s_underrun_bytes {0};
   unsigned _s_invalid_birthday {0};
 
-  int  _s_agebucket_ndx(std::time_t now, std::time_t birth);
+  unsigned  _s_agebucket_largest();
+  unsigned  _s_szebucket_cnt_largest();
+  unsigned  _s_szebucket_sze_largest();
+
   void _s_agebucket_update(std::time_t now);
 
-  unsigned  _s_agebucket_largest();
-  unsigned  _s_szebucket_largest();
-  unsigned  _s_scaler(int largest, int columns);
-  int s_szebucket_ndx(std::size_t sz);
 
-  void _s_dump_scaled(char *hdr, int count, int scale);
-  void _s_dump_range_scaled(char *hdr, int *p, int floor, int ceiling, int scale);
-  void _s_dump_value_with_commas(int n);
-  void _s_dump_self(std::time_t);
+  int _s_szebucket_ndx(std::size_t sz);
+  int  _s_agebucket_ndx(std::time_t now, std::time_t birth);
+
+  unsigned  _s_dump_scaler(unsigned largest, unsigned columns);
+  void _s_dump_scaled(std::string &hdr, unsigned count, unsigned scaler);
+  void _s_dump_range_scaled(std::string &hdr, std::vector<unsigned> &rv, unsigned floor, unsigned ceiling, unsigned scaler);
+  void _s_dump_with_sep(unsigned n, char sep = ',');
+  void _s_dump_self(std::time_t) noexcept;
 
  public:
   void s_agebucket_insert(std::time_t birth);

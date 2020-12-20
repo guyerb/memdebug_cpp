@@ -47,7 +47,7 @@ void * dmalloc_calloc(size_t count, size_t size)
   ptr = libc_calloc_wrapper(count, size + cookie.size());
   if (ptr) {
     ptr = cookie.cookie(ptr, now, size);
-    stat.alloc(size, now);
+    stat.s_alloc(size, now);
   }
   return ptr;
 }
@@ -59,7 +59,7 @@ void dmalloc_free(void *ptr)
 
   dputc('f');
   if (cookie.ours(ptr)) {
-    stat.free(cookie.bytes(ptr), now, cookie.birthday(ptr));
+    stat.s_free(cookie.bytes(ptr), now, cookie.birthday(ptr));
     ptr = cookie.base(ptr);
   }
   libc_free_wrapper(ptr);
@@ -76,7 +76,7 @@ void * dmalloc_malloc(size_t size)
   ptr = libc_malloc_wrapper(size + cookie.size());
   if (ptr) {
     ptr = cookie.cookie(ptr, now, size);
-    stat.alloc(size, now);
+    stat.s_alloc(size, now);
   }
   return ptr;
 }
@@ -89,14 +89,14 @@ void * dmalloc_realloc(void *ptr, size_t size)
 
   dputc('r');
   if (ptr && cookie.ours(ptr)) {
-    stat.free(cookie.bytes(ptr), now, cookie.birthday(ptr));
+    stat.s_free(cookie.bytes(ptr), now, cookie.birthday(ptr));
     ptr = cookie.base(ptr);
   }
 
   p = libc_realloc_wrapper(ptr, size + cookie.size());
   if (p) {
     p = cookie.cookie(p, now, size);
-    stat.alloc(size, now);
+    stat.s_alloc(size, now);
   }
   return p;
 }
