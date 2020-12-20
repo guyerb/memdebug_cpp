@@ -6,7 +6,7 @@
 #include "dmalloc_version.h"
 #include "libc_wrapper.h"
 
-dmalloc_stat stat;
+dmalloc_stat gstat;
 std::mutex _s_m;
 
 unsigned  dmalloc_stat::_s_agebucket_largest()
@@ -37,9 +37,9 @@ unsigned  dmalloc_stat::_s_szebucket_largest(const std::vector<unsigned> &rv)
 {
   unsigned largest = 0;
 
-  for (std::vector<unsigned>::size_type i = rv.size() - 1; i >= 0; i--) {
+  for (std::vector<unsigned>::size_type i = 0; i < rv.size(); i++)
     if (rv[i] > largest) largest = rv[i];
-  }
+
   return largest;
 }
 
@@ -121,7 +121,7 @@ void dmalloc_stat::_s_dump_scaled(std::string &hdr, unsigned count, unsigned sca
     std::cout << hdr << ": ";
 
   if (count < scaler) {
-    if (scaler > 0)
+    if (count > 0)
       printf(".");	/* partial # */
   } else {
     printf("#");
@@ -162,16 +162,16 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   dputc('D');
 
   pgm = std::gmtime(&now);
-  pgm_str= std::asctime(nullptr);
+  pgm_str= std::asctime(pgm);
   pgm_str[24] = '\0';		/* kill the newline with bravado */
 
   printf("========== %s: UTC %s ==========\n", DMALLOC_VERSION_STRING, pgm_str);
   printf("%-26s", "overall allocations:" );
-  _s_dump_with_sep(_s_allt_alloc);
+  _s_dump_with_sep(_s_allt_alloc); printf("\n");
   printf("%-26s", "current allocations:" );
-  _s_dump_with_sep(_s_curr_alloc);
+  _s_dump_with_sep(_s_curr_alloc); printf("\n");
   printf("%-26s", "current alloc bytes:" );
-  _s_dump_with_sep(_s_curr_bytes);
+  _s_dump_with_sep(_s_curr_bytes); printf("\n");
 
   printf("\ninternals:\n");
   printf("%-25s %d\n", "null frees:", _s_null_free);
@@ -190,7 +190,7 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   /* number of allocations living in size bucket*/
   unsigned scaler_cnt = _s_dump_scaler(_s_szebucket_largest(_s_szebucket_cnt), 68);
   printf("histogram: allocs: (one # represents approx %d allocs)\n", scaler_cnt);
-  for (unsigned i = 0; i < sizeof(bucket_index); i++) {
+  for (unsigned i = 0; i < szesz; i++) {
     _s_dump_scaled(sze_hdr[i],	_s_szebucket_cnt[i], scaler_cnt);
   }
   printf("\n");
@@ -198,8 +198,8 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   /* number of bytes living in size bucket. */
   unsigned scaler_sze = _s_dump_scaler(_s_szebucket_largest(_s_szebucket_sze), 68);
   printf("histogram: bytes: (one # represents approx %d bytes)\n", scaler_sze);
-  for (unsigned i = 0; i < sizeof(bucket_index); i++) {
-    _s_dump_scaled(sze_hdr[i],	_s_szebucket_sze[i], scaler_cnt);
+  for (unsigned i = 0; i < szesz; i++) {
+    _s_dump_scaled(sze_hdr[i],	_s_szebucket_sze[i], scaler_sze);
   }
   printf("\n");
 
@@ -281,7 +281,7 @@ void dmalloc_stat::s_dump(std::time_t now)
   }
 
   _s_logupdate = now;
-  dmalloc_stat copy = stat;
+  dmalloc_stat copy = gstat;
 
   lck.unlock();
 
@@ -304,6 +304,35 @@ int main()
   std::time_t t_1500 = t_0 + 1500;
   std::time_t t_2000 = t_0 + 2000;
 
+  ut.ut_start_unit("");
+
+  dmalloc_stat my_stat1;
+  ut.ut_start_section("exercise my_stat1 primitives");
+  ut.ut_mark("mark 0");
+  ut.ut_check("empty sz size is 0", (unsigned)0, \
+              my_stat1._s_szebucket_largest(my_stat1._s_szebucket_sze));
+  ut.ut_check("empty sz count is 0", (unsigned)0, \
+              my_stat1._s_szebucket_largest(my_stat1._s_szebucket_cnt));
+  my_stat1.s_alloc(68, t_0);
+  ut.ut_check("current allocated bytes", (unsigned)68, my_stat1._s_curr_bytes);
+  ut.ut_check("current allocations", (unsigned)1, my_stat1._s_curr_alloc);
+  ut.ut_check("alltime allocations", (unsigned)1, my_stat1._s_allt_alloc);
+  ut.ut_check("agebucket largest", (unsigned)1, my_stat1._s_agebucket_largest());
+  ut.ut_check("largest sz size is 68", (unsigned)68, \
+              my_stat1._s_szebucket_largest(my_stat1._s_szebucket_sze));
+  ut.ut_check("empty sz count is 1", (unsigned)1, \
+              my_stat1._s_szebucket_largest(my_stat1._s_szebucket_cnt));
+
+  ut.ut_check("agebucket scaler", (unsigned)1, my_stat1._s_dump_scaler(68, 68));
+  my_stat1.s_free(68, t_0, t_0);
+  my_stat1.s_alloc(69, t_0);
+  ut.ut_check("current allocated bytes", (unsigned)69, my_stat1._s_curr_bytes);
+  ut.ut_check("current allocations", (unsigned)1, my_stat1._s_curr_alloc);
+  ut.ut_check("alltime allocations", (unsigned)2, my_stat1._s_allt_alloc);
+  ut.ut_check("agebucket scaler", (unsigned)2, my_stat1._s_dump_scaler(69, 68));
+  ut.ut_check("agebucket scaler", (unsigned)2, my_stat1._s_dump_scaler(136, 68));
+  ut.ut_check("agebucket scaler", (unsigned)3, my_stat1._s_dump_scaler(137, 68));
+
   /*alloc sz	birthday
     0		t_0
     1		t_0
@@ -323,141 +352,143 @@ int main()
     8192	t_999
     8192	t_1500
     8192	t_2000
-*/
+  */
 
-  ut.ut_start_unit("");
-  ut.ut_start_section("exercise stat._s_szebucket_ndx()");
-  ut.ut_check("   0 byte bucket is ", 0, stat._s_szebucket_ndx(0));
-  ut.ut_check("   1 byte bucket is ", 0, stat._s_szebucket_ndx(1));
-  ut.ut_check("   2 byte bucket is ", 0, stat._s_szebucket_ndx(2));
-  ut.ut_check("   3 byte bucket is ", 0, stat._s_szebucket_ndx(3));
-  ut.ut_check("   4 byte bucket is ", 1, stat._s_szebucket_ndx(4));
-  ut.ut_check("   5 byte bucket is ", 1, stat._s_szebucket_ndx(5));
-  ut.ut_check("   6 byte bucket is ", 1, stat._s_szebucket_ndx(6));
-  ut.ut_check("   7 byte bucket is ", 1, stat._s_szebucket_ndx(7));
-  ut.ut_check("   8 byte bucket is ", 2, stat._s_szebucket_ndx(8));
-  ut.ut_check("  15 byte bucket is ", 2, stat._s_szebucket_ndx(15));
-  ut.ut_check("2047 byte bucket is ", 9, stat._s_szebucket_ndx(2047));
-  ut.ut_check("2049 byte bucket is ", 10, stat._s_szebucket_ndx(2049));
-  ut.ut_check("4095 byte bucket is ", 10, stat._s_szebucket_ndx(4095));
-  ut.ut_check("4096 byte bucket is ", 11, stat._s_szebucket_ndx(4096));
-  ut.ut_check("4097 byte bucket is ", 11, stat._s_szebucket_ndx(4097));
-  ut.ut_check("1234567 byte bucket is ", 11, stat._s_szebucket_ndx(1234567));
+  ut.ut_start_section("exercise gstat._s_szebucket_ndx()");
+  ut.ut_check("   0 byte bucket is ", 0, gstat._s_szebucket_ndx(0));
+  ut.ut_check("   1 byte bucket is ", 0, gstat._s_szebucket_ndx(1));
+  ut.ut_check("   2 byte bucket is ", 0, gstat._s_szebucket_ndx(2));
+  ut.ut_check("   3 byte bucket is ", 0, gstat._s_szebucket_ndx(3));
+  ut.ut_check("   4 byte bucket is ", 1, gstat._s_szebucket_ndx(4));
+  ut.ut_check("   5 byte bucket is ", 1, gstat._s_szebucket_ndx(5));
+  ut.ut_check("   6 byte bucket is ", 1, gstat._s_szebucket_ndx(6));
+  ut.ut_check("   7 byte bucket is ", 1, gstat._s_szebucket_ndx(7));
+  ut.ut_check("   8 byte bucket is ", 2, gstat._s_szebucket_ndx(8));
+  ut.ut_check("  15 byte bucket is ", 2, gstat._s_szebucket_ndx(15));
+  ut.ut_check("2047 byte bucket is ", 9, gstat._s_szebucket_ndx(2047));
+  ut.ut_check("2049 byte bucket is ", 10, gstat._s_szebucket_ndx(2049));
+  ut.ut_check("4095 byte bucket is ", 10, gstat._s_szebucket_ndx(4095));
+  ut.ut_check("4096 byte bucket is ", 11, gstat._s_szebucket_ndx(4096));
+  ut.ut_check("4097 byte bucket is ", 11, gstat._s_szebucket_ndx(4097));
+  ut.ut_check("1234567 byte bucket is ", 11, gstat._s_szebucket_ndx(1234567));
+  ut.ut_check("empty sz size is 0", (unsigned)0, gstat._s_szebucket_largest(gstat._s_szebucket_sze));
+  ut.ut_check("empty sz count is 0", (unsigned)0, gstat._s_szebucket_largest(gstat._s_szebucket_cnt));
   ut.ut_finish_section();
   ut.ut_start_section("exercise age and size buckets");
-  stat.alloc(   0, t_0);
-  stat.alloc(   1, t_0);
-  stat.alloc(   2, t_0);
-  stat.alloc(   4, t_0);
-  stat.alloc(   8, t_0);
-  stat.alloc(  16, t_0);
-  stat.alloc(  32, t_0);
-  stat.alloc(  64, t_0);
-  stat.alloc( 128, t_0);
-  stat.alloc( 256, t_0);
-  stat.alloc( 512, t_0);
-  stat.alloc(1024, t_0);
-  stat.alloc(2048, t_0);
-  stat.alloc(4096, t_0);
-  stat.alloc(8192, t_0);
+  gstat.s_alloc(   0, t_0);
+  gstat.s_alloc(   1, t_0);
+  gstat.s_alloc(   2, t_0);
+  gstat.s_alloc(   4, t_0);
+  gstat.s_alloc(   8, t_0);
+  gstat.s_alloc(  16, t_0);
+  gstat.s_alloc(  32, t_0);
+  gstat.s_alloc(  64, t_0);
+  gstat.s_alloc( 128, t_0);
+  gstat.s_alloc( 256, t_0);
+  gstat.s_alloc( 512, t_0);
+  gstat.s_alloc(1024, t_0);
+  gstat.s_alloc(2048, t_0);
+  gstat.s_alloc(4096, t_0);
+  gstat.s_alloc(8192, t_0);
   unsigned bytes = 0 + 1 + 2 + 4 + 8 + 16 + 32 + 64 + 128 + 256 + 512 + 1024  \
     + 2048 +4096 + 8192;
-  ut.ut_mark("mark 1");
-  ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("current allocations", (unsigned)15, stat._s_curr_alloc);
-  ut.ut_check("alltime allocations", (unsigned)15, stat._s_allt_alloc);
-  ut.ut_check("age  bucket 0",  (unsigned)15, stat._s_agebucket_cnt[BUCKET_0000]);
-  ut.ut_check("size bucket 0",  (unsigned)3, stat._s_szebucket_cnt[BUCKET_0000]);
-  ut.ut_check("size bucket 1",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0004]);
-  ut.ut_check("size bucket 2",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0008]);
-  ut.ut_check("size bucket 3",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0016]);
-  ut.ut_check("size bucket 4",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0032]);
-  ut.ut_check("size bucket 5",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0064]);
-  ut.ut_check("size bucket 6",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0128]);
-  ut.ut_check("size bucket 7",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0256]);
-  ut.ut_check("size bucket 8",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_0512]);
-  ut.ut_check("size bucket 9",  (unsigned)1, stat._s_szebucket_cnt[BUCKET_1024]);
-  ut.ut_check("size bucket 10", (unsigned)1, stat._s_szebucket_cnt[BUCKET_2048]);
-  ut.ut_check("size bucket 11", (unsigned)2, stat._s_szebucket_cnt[BUCKET_4096]);
-  stat.alloc(8192, t_1);
-  bytes += 8192;
-  ut.ut_mark("mark 2");
-  ut.ut_check("size bucket 11", (unsigned)3, stat._s_szebucket_cnt[BUCKET_4096]);
-  ut.ut_check("age  bucket 0",  (unsigned)1, stat._s_agebucket_cnt[0]);
-  ut.ut_check("age  bucket 1",  (unsigned)15, stat._s_agebucket_cnt[1]);
-  ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)16, stat._s_allt_alloc);
-
-  stat.alloc(8192, t_999);
-  bytes += 8192;
-  ut.ut_mark("mark 3");
-  ut.ut_check("size bucket 11",  (unsigned)4, stat._s_szebucket_cnt[BUCKET_4096]);
-  ut.ut_check("age  bucket 0",   (unsigned)1, stat._s_agebucket_cnt[0]);
-  ut.ut_check("age  bucket 998", (unsigned)1, stat._s_agebucket_cnt[998]);
-  ut.ut_check("age  bucket 999", (unsigned)15, stat._s_agebucket_cnt[999]);
-
-  stat.alloc(8192, t_1500);
-  bytes += 8192;
-  ut.ut_mark("mark 4");
-  ut.ut_check("size bucket 11",  (unsigned)5, stat._s_szebucket_cnt[BUCKET_4096]);
-  ut.ut_check("age  bucket 0",   (unsigned)1, stat._s_agebucket_cnt[0]);
-  ut.ut_check("age  bucket 501",   (unsigned)1, stat._s_agebucket_cnt[501]);
-  ut.ut_check("age  bucket 999", (unsigned)16, stat._s_agebucket_cnt[999]);
-
-  stat.alloc(8192, t_2000);
-  bytes += 8192;
   ut.ut_mark("mark 5");
-  ut.ut_check("size bucket 11",  (unsigned)6, stat._s_szebucket_cnt[BUCKET_4096]);
-  ut.ut_check("age  bucket 0",   (unsigned)1, stat._s_agebucket_cnt[0]);
-  ut.ut_check("age  bucket 999", (unsigned)17, stat._s_agebucket_cnt[999]);
-  ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)19, stat._s_curr_alloc);
-  ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("current allocations", (unsigned)19, stat._s_curr_alloc);
-
-  stat.free(bytes * 2, t_2000, t_0);
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("current allocations", (unsigned)15, gstat._s_curr_alloc);
+  ut.ut_check("alltime allocations", (unsigned)15, gstat._s_allt_alloc);
+  ut.ut_check("age  bucket 0",  (unsigned)15, gstat._s_agebucket_cnt[BUCKET_0000]);
+  ut.ut_check("size bucket 0",  (unsigned)3, gstat._s_szebucket_cnt[BUCKET_0000]);
+  ut.ut_check("size bucket 1",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0004]);
+  ut.ut_check("size bucket 2",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0008]);
+  ut.ut_check("size bucket 3",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0016]);
+  ut.ut_check("size bucket 4",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0032]);
+  ut.ut_check("size bucket 5",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0064]);
+  ut.ut_check("size bucket 6",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0128]);
+  ut.ut_check("size bucket 7",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0256]);
+  ut.ut_check("size bucket 8",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_0512]);
+  ut.ut_check("size bucket 9",  (unsigned)1, gstat._s_szebucket_cnt[BUCKET_1024]);
+  ut.ut_check("size bucket 10", (unsigned)1, gstat._s_szebucket_cnt[BUCKET_2048]);
+  ut.ut_check("size bucket 11", (unsigned)2, gstat._s_szebucket_cnt[BUCKET_4096]);
+  gstat.s_alloc(8192, t_1);
+  bytes += 8192;
   ut.ut_mark("mark 6");
-  ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)19, stat._s_allt_alloc);
-  ut.ut_check("current allocations", (unsigned)19, stat._s_curr_alloc);
-  ut.ut_check("size underrun", (unsigned)1, (unsigned)stat._s_underrun_bytes);
-  stat.free(8192, t_2000, t_2000);
-  stat.free(8192, t_2000, t_1500);
-  stat.free(8192, t_2000, t_999);
-  stat.free(8192, t_2000, t_1);
-  stat.free(8192, t_2000, t_0);
+  ut.ut_check("size bucket 11", (unsigned)3, gstat._s_szebucket_cnt[BUCKET_4096]);
+  ut.ut_check("age  bucket 0",  (unsigned)1, gstat._s_agebucket_cnt[0]);
+  ut.ut_check("age  bucket 1",  (unsigned)15, gstat._s_agebucket_cnt[1]);
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("alltime allocations", (unsigned)16, gstat._s_allt_alloc);
+
+  gstat.s_alloc(8192, t_999);
+  bytes += 8192;
+  ut.ut_mark("mark 7");
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("size bucket 11",  (unsigned)4, gstat._s_szebucket_cnt[BUCKET_4096]);
+  ut.ut_check("age  bucket 0",   (unsigned)1, gstat._s_agebucket_cnt[0]);
+  ut.ut_check("age  bucket 998", (unsigned)1, gstat._s_agebucket_cnt[998]);
+  ut.ut_check("age  bucket 999", (unsigned)15, gstat._s_agebucket_cnt[999]);
+
+  gstat.s_alloc(8192, t_1500);
+  bytes += 8192;
+  ut.ut_mark("mark 8");
+  ut.ut_check("size bucket 11",  (unsigned)5, gstat._s_szebucket_cnt[BUCKET_4096]);
+  ut.ut_check("age  bucket 0",   (unsigned)1, gstat._s_agebucket_cnt[0]);
+  ut.ut_check("age  bucket 501",   (unsigned)1, gstat._s_agebucket_cnt[501]);
+  ut.ut_check("age  bucket 999", (unsigned)16, gstat._s_agebucket_cnt[999]);
+
+  gstat.s_alloc(8192, t_2000);
+  bytes += 8192;
+  ut.ut_mark("mark 9");
+  ut.ut_check("size bucket 11",  (unsigned)6, gstat._s_szebucket_cnt[BUCKET_4096]);
+  ut.ut_check("age  bucket 0",   (unsigned)1, gstat._s_agebucket_cnt[0]);
+  ut.ut_check("age  bucket 999", (unsigned)17, gstat._s_agebucket_cnt[999]);
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("alltime allocations", (unsigned)19, gstat._s_curr_alloc);
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("current allocations", (unsigned)19, gstat._s_curr_alloc);
+
+  gstat.s_free(bytes * 2, t_2000, t_0);
+  ut.ut_mark("mark 10");
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("alltime allocations", (unsigned)19, gstat._s_allt_alloc);
+  ut.ut_check("current allocations", (unsigned)19, gstat._s_curr_alloc);
+  ut.ut_check("size underrun", (unsigned)1, (unsigned)gstat._s_underrun_bytes);
+  gstat.s_free(8192, t_2000, t_2000);
+  gstat.s_free(8192, t_2000, t_1500);
+  gstat.s_free(8192, t_2000, t_999);
+  gstat.s_free(8192, t_2000, t_1);
+  gstat.s_free(8192, t_2000, t_0);
   bytes -= 8192 * 5;
-  stat.free(4096, t_2000, t_0);
+  gstat.s_free(4096, t_2000, t_0);
   bytes -= 4096;
-  ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)19, stat._s_allt_alloc);
-  ut.ut_check("current allocations", (unsigned)13, stat._s_curr_alloc);
-  ut.ut_check("age  bucket 999", (unsigned)13, stat._s_agebucket_cnt[999]);
-  ut.ut_check("age  bucket 0", (unsigned)0, stat._s_agebucket_cnt[0]);
-  stat.free(4096, t_2000, t_0);
-  ut.ut_check("current allocated bytes", bytes, stat._s_curr_bytes);
-  ut.ut_check("age  bucket 0", (unsigned)0, stat._s_agebucket_cnt[0]);
-  stat.free(2048, t_2000, t_0);
-  stat.free(1024, t_2000, t_0);
-  stat.free(512, t_2000, t_0);
-  stat.free(256, t_2000, t_0);
-  stat.free(128, t_2000, t_0);
-  stat.free(64, t_2000, t_0);
-  stat.free(32, t_2000, t_0);
-  stat.free(16, t_2000, t_0);
-  stat.free(8, t_2000, t_0);
-  stat.free(4, t_2000, t_0);
-  stat.free(2, t_2000, t_0);
-  stat.free(1, t_2000, t_0);
-  stat.free(0, t_2000, t_0);
-  ut.ut_check("current allocated bytes", (unsigned)0, stat._s_curr_bytes);
-  ut.ut_check("alltime allocations", (unsigned)19, stat._s_allt_alloc);
-  ut.ut_check("current allocations", (unsigned)0, stat._s_curr_alloc);
-  ut.ut_check("age bucket 999", (unsigned)0, stat._s_agebucket_cnt[999]);
-  ut.ut_check("age bucket 0", (unsigned)0, stat._s_agebucket_cnt[0]);
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("alltime allocations", (unsigned)19, gstat._s_allt_alloc);
+  ut.ut_check("current allocations", (unsigned)13, gstat._s_curr_alloc);
+  ut.ut_check("age  bucket 999", (unsigned)13, gstat._s_agebucket_cnt[999]);
+  ut.ut_check("age  bucket 0", (unsigned)0, gstat._s_agebucket_cnt[0]);
+  gstat.s_free(4096, t_2000, t_0);
+  ut.ut_check("current allocated bytes", bytes, gstat._s_curr_bytes);
+  ut.ut_check("age  bucket 0", (unsigned)0, gstat._s_agebucket_cnt[0]);
+  gstat.s_free(2048, t_2000, t_0);
+  gstat.s_free(1024, t_2000, t_0);
+  gstat.s_free(512, t_2000, t_0);
+  gstat.s_free(256, t_2000, t_0);
+  gstat.s_free(128, t_2000, t_0);
+  gstat.s_free(64, t_2000, t_0);
+  gstat.s_free(32, t_2000, t_0);
+  gstat.s_free(16, t_2000, t_0);
+  gstat.s_free(8, t_2000, t_0);
+  gstat.s_free(4, t_2000, t_0);
+  gstat.s_free(2, t_2000, t_0);
+  gstat.s_free(1, t_2000, t_0);
+  gstat.s_free(0, t_2000, t_0);
+  ut.ut_check("current allocated bytes", (unsigned)0, gstat._s_curr_bytes);
+  ut.ut_check("alltime allocations", (unsigned)19, gstat._s_allt_alloc);
+  ut.ut_check("current allocations", (unsigned)0, gstat._s_curr_alloc);
+  ut.ut_check("age bucket 999", (unsigned)0, gstat._s_agebucket_cnt[999]);
+  ut.ut_check("age bucket 0", (unsigned)0, gstat._s_agebucket_cnt[0]);
 
   unsigned population = 0;
-  for (const auto& i : stat._s_agebucket) {
+  for (const auto& i : gstat._s_agebucket_cnt) {
       std::cout << i << ' ';
       population += i;
   }
@@ -465,7 +496,7 @@ int main()
   ut.ut_check("age bucket population", (unsigned)0, population);
 
   population = 0;
-  for (const auto& i : stat._s_szebucket) {
+  for (const auto& i : gstat._s_szebucket_cnt) {
     std::cout << i << ' ';
     population += i;
   }

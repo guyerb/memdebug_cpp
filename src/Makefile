@@ -6,7 +6,7 @@ depends := $(objects:.o=.d)
 uname := $(shell uname -s)
 ifeq ($(uname), Linux)
 	os = LINUX
-	sources += dmalloc_intercept_linux.cpp libc_wrapper.cpp
+	sources += dmalloc_intercept_linux.cpp libc_wrapper_linux.cpp
 	target = libdmalloc.so
 endif
 ifeq ($(uname), Darwin)
