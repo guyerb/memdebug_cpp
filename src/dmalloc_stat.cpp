@@ -6,7 +6,7 @@
 
 dmalloc_stat stat;
 
-int dmalloc_stat::_agebucket_ndx(std::time_t now, std::time_t birth)
+int dmalloc_stat::_s_agebucket_ndx(std::time_t now, std::time_t birth)
 {
   int ndx = -1;
 
@@ -20,19 +20,19 @@ int dmalloc_stat::_agebucket_ndx(std::time_t now, std::time_t birth)
   return ndx;
 }
 
-/*
- * Monitor the age of each allocation by grouping them in buckets,
+/* Monitor the age of each allocation by grouping them in buckets,
  * where each bucket represents one second of age. Bump them forward
- * by elapsed time since last update. It is assumed (and necessary)
- * for the caller to beholding the stats mutex _m
+ * by elapsed time since last update.
  */
-void dmalloc_stat::_agebucket_update(std::time_t now)
+void dmalloc_stat::_s_agebucket_update(std::time_t now)
 {
   std::time_t elapsed = 0;
 
   elapsed = now - _s_ageupdate;
-  if (elapsed > 0)
-    _s_ageupdate = now;
+  if (elapsed == 0) {
+    return;
+  }
+  _s_ageupdate = now;
 
   dputc('A');
   std::vector<int>::size_type i = _s_agebucket.size();
@@ -51,24 +51,7 @@ void dmalloc_stat::_agebucket_update(std::time_t now)
   }
 }
 
-void dmalloc_stat::agebucket_insert(std::time_t now)
-{
-  _agebucket_update(now);
-  _s_agebucket[0]++;
-}
-
-void dmalloc_stat::agebucket_delete(std::time_t now, std::time_t birth)
-{
-  _agebucket_update(now);
-  int ndx = _agebucket_ndx(now, birth);
-  if (ndx != -1 && _s_agebucket[ndx] != 0) {
-    _s_agebucket[ndx]--;
-  } else {
-    _s_underrun_age++;
-  }
-}
-
-int dmalloc_stat::size_bucket_ndx(std::size_t sz)
+int dmalloc_stat::_s_szebucket_ndx(std::size_t sz)
 {
   if (sz >= 0x1000) return BUCKET_4096;
   if (sz & 0x0800) return BUCKET_2048;
@@ -84,34 +67,139 @@ int dmalloc_stat::size_bucket_ndx(std::size_t sz)
   return BUCKET_0000;
 }
 
-void dmalloc_stat::alloc(std::size_t sz, std::time_t now)
+void dmalloc_stat::s_agebucket_insert(std::time_t now)
 {
-  int ndx = size_bucket_ndx(sz);
-  std::scoped_lock lck {_m};
+  _s_agebucket_update(now);
+  _s_agebucket[0]++;
+}
 
-  // don't do anything that might cause a malloc or free else deadlock
+void dmalloc_stat::s_agebucket_delete(std::time_t now, std::time_t birth)
+{
+  _s_agebucket_update(now);
+  int ndx = _agebucket_ndx(now, birth);
+  if (ndx != -1 && _s_agebucket[ndx] != 0) {
+    _s_agebucket[ndx]--;
+  } else {
+    _s_underrun_age++;
+  }
+}
+
+void dmalloc_stat::s_alloc(std::size_t sz, std::time_t now)
+{
+  int ndx = szebucket_ndx(sz);
+  std::unique_lock lck {_s_m};
+
   _s_curr_bytes += sz;
   _s_curr_alloc ++;
   _s_allt_alloc ++;
-  _s_szebucket[ndx]++;
+  _s_szebucket_cnt[ndx] ++;
+  _s_szebucket_sze[ndx] += sz;
   agebucket_insert(now);
+  lck.unlock();
+
+  s_dump();
 }
 
-void dmalloc_stat::free(std::size_t sz, std::time_t now, std::time_t birth)
+void dmalloc_stat::s_free(std::size_t sz, std::time_t now, std::time_t birth)
 {
-  int ndx = size_bucket_ndx(sz);
-  std::scoped_lock lck {_m};
+  int ndx = szebucket_ndx(sz);
+  std::unique_lock lck {_s_m};
 
-  // don't do anything that might cause a malloc or free else deadlock
-
-  if ((_s_curr_bytes >= sz) &&  _s_szebucket[ndx]) {
+  if ((_s_curr_bytes >= sz) && _s_szebucket_cnt[ndx] && (_s_szebucket_sze[ndx] >= sz)) {
     _s_curr_bytes -= sz;
     _s_curr_alloc--;
-    _s_szebucket[ndx]--;
+    _s_szebucket_cnt[ndx]--;
+    _s_szebucket_sze[ndx] -= sz;
     agebucket_delete(now, birth);
   } else {
     _s_underrun_bytes++;
   }
+  lck.unlock();
+  dump();
+}
+
+void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
+{
+  struct tm *pgm = nullptr;
+  char * pgm_str = nullptr;
+
+  dputc('D');
+
+  pgm = std::gmtime(&now);
+  pgm_str= std::asctime(nullptr);
+  pgm_str[24] = '\0';		/* kill the newline with bravado */
+
+  printf("========== %s: UTC %s ==========\n", DMALLOC_VERSION_STRING, pgm_str);
+  printf("%-26s", "overall allocations:" );
+  _dump_with_sep(_s_allt_alloc);
+  printf("%-26s", "current allocations:" );
+  _dump_with_sep(_s_curr_alloc);
+  printf("%-26s", "current alloc bytes:" );
+  _dump_with_sep(_s_curr_bytes);
+
+  printf("\ninternals:\n");
+  printf("%-25s %d\n", "null frees:", _s_null_free);
+  printf("%-25s %d\n", "failed allocs:", _s_fail_alloc);
+  printf("%-25s %d\n", "age underruns:", _s_underrun_age);
+  printf("%-25s %d\n", "size underruns:", _s_underrun_bytes);
+  printf("%-25s %d\n", "invalid_birthday:", _s_invalid_birthday);
+  printf("\n");
+
+  vector<int, std::cstring> sze_hdr = {
+    "0    -    4",  "4    -    8", "8    -   16",  "16   -   32",
+    "32   -   64",  "64   -  128", "128  -  256",  "256  -  512",
+    "512  - 1024",  "1024 - 2048", "2048 - 4096",  "4096 - INFI",
+  };
+
+  /* number of allocations living in size bucket*/
+  uint32_t scaler_cnt = _s_scaler(_s_szebucket_cnt_largest(), 68);
+  printf("histogram: allocs: (one # represents approx %d allocs)\n", scaler_cnt);
+  for (auto x : bucket_index) {
+    _s_dump_scaled(sze_hdr[x],	_s_szebucket_cnt[x], scaler_cnt);
+  }
+  printf("\n");
+
+  /* number of bytes living in size bucket. */
+  uint32_t scaler_sze = _s_scaler(_s_szebucket_sze_largest(), 68);
+  printf("histogram: bytes: (one # represents approx %d bytes)\n", scaler_sze);
+  for (auto x : bucket_index) {
+    _s_dump_scaled(sze_hdr[x],	_s_szebucket_sze[x], scaler_cnt);
+  }
+  printf("\n");
+
+  /* dump age buckets */
+  uint32_t scaler_age = _s_scaler(_s_agebucket_largest(), 68);
+
+  printf("histogram: alloc ages: (one # represents appox %d  allocs)\n", scaler_age);
+  _s_dump_range_scaled("<    10 sec", _s_agebucket, 0, 9, scaler_age);
+  _s_dump_range_scaled("<   100 sec", _s_agebucket, 10, 99, scaler_age);
+  _s_dump_range_scaled("<  1000 sec", _s_agebucket, 100, 999, scaler_age);
+  _s_dump_range_scaled(">= 1000 sec", _s_agebucket, 999, 1000, scaler_age);
+
+}
+
+
+void dmalloc_stat::s_dump(std::time_t now)
+{
+  std::unique_lock lck {_s_m};
+
+  if (_s_logupdate == 0) {
+    _s_logupdate = now;
+    lck.unlock();
+    return;
+  }
+  if ((now - _s_logupdate) < 5) {
+    lck.unlock();
+    return;
+  }
+
+  _s_logupdate = now;
+  dmalloc_stat copy = this;
+
+  lck.unlock();
+
+  // we have 5 seconds to dump before reentrancy becomes issue
+  copy._dump_self(now);
 }
 
 /* ************************************************************************** */
@@ -151,23 +239,23 @@ int main()
 */
 
   ut.ut_start_unit("");
-  ut.ut_start_section("exercise stat.size_bucket_ndx()");
-  ut.ut_check("   0 byte bucket is ", 0, stat.size_bucket_ndx(0));
-  ut.ut_check("   1 byte bucket is ", 0, stat.size_bucket_ndx(1));
-  ut.ut_check("   2 byte bucket is ", 0, stat.size_bucket_ndx(2));
-  ut.ut_check("   3 byte bucket is ", 0, stat.size_bucket_ndx(3));
-  ut.ut_check("   4 byte bucket is ", 1, stat.size_bucket_ndx(4));
-  ut.ut_check("   5 byte bucket is ", 1, stat.size_bucket_ndx(5));
-  ut.ut_check("   6 byte bucket is ", 1, stat.size_bucket_ndx(6));
-  ut.ut_check("   7 byte bucket is ", 1, stat.size_bucket_ndx(7));
-  ut.ut_check("   8 byte bucket is ", 2, stat.size_bucket_ndx(8));
-  ut.ut_check("  15 byte bucket is ", 2, stat.size_bucket_ndx(15));
-  ut.ut_check("2047 byte bucket is ", 9, stat.size_bucket_ndx(2047));
-  ut.ut_check("2049 byte bucket is ", 10, stat.size_bucket_ndx(2049));
-  ut.ut_check("4095 byte bucket is ", 10, stat.size_bucket_ndx(4095));
-  ut.ut_check("4096 byte bucket is ", 11, stat.size_bucket_ndx(4096));
-  ut.ut_check("4097 byte bucket is ", 11, stat.size_bucket_ndx(4097));
-  ut.ut_check("1234567 byte bucket is ", 11, stat.size_bucket_ndx(1234567));
+  ut.ut_start_section("exercise stat.szebucket_ndx()");
+  ut.ut_check("   0 byte bucket is ", 0, stat.szebucket_ndx(0));
+  ut.ut_check("   1 byte bucket is ", 0, stat.szebucket_ndx(1));
+  ut.ut_check("   2 byte bucket is ", 0, stat.szebucket_ndx(2));
+  ut.ut_check("   3 byte bucket is ", 0, stat.szebucket_ndx(3));
+  ut.ut_check("   4 byte bucket is ", 1, stat.szebucket_ndx(4));
+  ut.ut_check("   5 byte bucket is ", 1, stat.szebucket_ndx(5));
+  ut.ut_check("   6 byte bucket is ", 1, stat.szebucket_ndx(6));
+  ut.ut_check("   7 byte bucket is ", 1, stat.szebucket_ndx(7));
+  ut.ut_check("   8 byte bucket is ", 2, stat.szebucket_ndx(8));
+  ut.ut_check("  15 byte bucket is ", 2, stat.szebucket_ndx(15));
+  ut.ut_check("2047 byte bucket is ", 9, stat.szebucket_ndx(2047));
+  ut.ut_check("2049 byte bucket is ", 10, stat.szebucket_ndx(2049));
+  ut.ut_check("4095 byte bucket is ", 10, stat.szebucket_ndx(4095));
+  ut.ut_check("4096 byte bucket is ", 11, stat.szebucket_ndx(4096));
+  ut.ut_check("4097 byte bucket is ", 11, stat.szebucket_ndx(4097));
+  ut.ut_check("1234567 byte bucket is ", 11, stat.szebucket_ndx(1234567));
   ut.ut_finish_section();
   ut.ut_start_section("exercise age and size buckets");
   stat.alloc(   0, t_0);
