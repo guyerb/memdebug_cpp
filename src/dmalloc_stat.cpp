@@ -11,17 +11,36 @@ std::mutex _s_m;
 
 unsigned  dmalloc_stat::_s_agebucket_largest()
 {
-  return 10;
+  unsigned largest = 0;
+  unsigned count = 0;
+
+  count = 0;
+  for (int i = 0; i < 10; i++) { count+= _s_agebucket_cnt[i]; }
+  if (count > largest) largest = count;
+
+  count = 0;
+  for (int i = 10; i < 99; i++) { count+= _s_agebucket_cnt[i]; }
+  if (count > largest) largest = count;
+
+  count = 0;
+  for (int i = 100; i < 999; i++) { count+= _s_agebucket_cnt[i]; }
+  if (count > largest) largest = count;
+
+  count = _s_agebucket_cnt[999];
+  if (count > largest) largest = count;
+
+  return largest;
+
 }
 
-unsigned  dmalloc_stat::_s_szebucket_cnt_largest()
+unsigned  dmalloc_stat::_s_szebucket_largest(const std::vector<unsigned> &rv)
 {
-  return 10;
-}
+  unsigned largest = 0;
 
-unsigned  dmalloc_stat::_s_szebucket_sze_largest()
-{
-  return 10;
+  for (std::vector<unsigned>::size_type i = rv.size() - 1; i >= 0; i--) {
+    if (rv[i] > largest) largest = rv[i];
+  }
+  return largest;
 }
 
 int dmalloc_stat::_s_agebucket_ndx(std::time_t now, std::time_t birth)
@@ -169,7 +188,7 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   };
 
   /* number of allocations living in size bucket*/
-  unsigned scaler_cnt = _s_dump_scaler(_s_szebucket_cnt_largest(), 68);
+  unsigned scaler_cnt = _s_dump_scaler(_s_szebucket_largest(_s_szebucket_cnt), 68);
   printf("histogram: allocs: (one # represents approx %d allocs)\n", scaler_cnt);
   for (unsigned i = 0; i < sizeof(bucket_index); i++) {
     _s_dump_scaled(sze_hdr[i],	_s_szebucket_cnt[i], scaler_cnt);
@@ -177,7 +196,7 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   printf("\n");
 
   /* number of bytes living in size bucket. */
-  unsigned scaler_sze = _s_dump_scaler(_s_szebucket_sze_largest(), 68);
+  unsigned scaler_sze = _s_dump_scaler(_s_szebucket_largest(_s_szebucket_sze), 68);
   printf("histogram: bytes: (one # represents approx %d bytes)\n", scaler_sze);
   for (unsigned i = 0; i < sizeof(bucket_index); i++) {
     _s_dump_scaled(sze_hdr[i],	_s_szebucket_sze[i], scaler_cnt);

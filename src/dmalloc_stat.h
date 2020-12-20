@@ -38,8 +38,7 @@ class dmalloc_stat {
   unsigned _s_invalid_birthday {0};
 
   unsigned  _s_agebucket_largest();
-  unsigned  _s_szebucket_cnt_largest();
-  unsigned  _s_szebucket_sze_largest();
+  unsigned  _s_szebucket_largest(const std::vector<unsigned> &rv);
 
   void _s_agebucket_update(std::time_t now);
 
