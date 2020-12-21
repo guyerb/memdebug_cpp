@@ -1,0 +1,172 @@
+dmalloc library - see ChangeLog for version info
+
+INTRODUCTION
+LD_PRELOAD and SYMBOL FISHING
+OUTPUT
+NOTES
+PROBLEMS
+TODO
+
+==================================================================
+INTRODUCTION
+
+This is a malloc/calloc/realloc/free debug libary (located in 'src')
+and an associated test program (located in 'check'). The library has
+been designed and tested on Linux and Mac OS. To see the test code in
+action then from the terminal and inside the dmalloc directory type:
+
+      make && make check   // CTRL-C to exit
+
+A variety of debug information will be printed on stderr every five
+seconds or thereabouts. More on the output format in OUTPUT below.
+
+It is not necessary to recompile your application as the library
+intercepts malloc type routines (see LD_PRELOAD below).
+
+Other interesting build targests:
+
+     make clean  // removes intermediate targets and executables
+
+     make distclean // same as clean but also remove compiled libraries
+
+From the src directory you can build and run unit tests:
+
+     make clean && make -f Makefile.unit_test
+
+     make clean && make -f Makefile.unit_test_stat
+
+     make clean && make -f Makefile.unit_test_cookie
+
+There are some interesting debug options. In src/Makefile you can add:
+
+      -D DMALLOC_PASSTHROUGH	 - this will basically bypass all accounting
+
+      -D DMALLOC_DEBUG            - enable dputc (cryptic, but helpful)
+
+==================================================================
+LD_PRELOAD and SYMBOL FISHING
+
+LD_PRELOAD gives you a method for having your executable find an
+alternative version of a library routine 'before' the normal
+version. This causes the program to call your version of malloc() for
+instance. In order to call through to the original malloc() then you
+need to fish out the symbol for the original malloc(). An invocation
+with LD_PRELOAD is shown below.
+
+LD_PRELOAD=$PWD/src/libdmalloc.so ./hello_world
+
+To read more about this technique read through the presentation from
+Peter Goldsborough.
+
+To see how preload and symbol fishing are accomplished under MAC OSX
+have a look at the 'check' target in check/Makefile and the source code
+for the library under 'src'
+
+WARNING
+
+You could setup your entire system to use this libary by overriding
+LD_PRELOAD system wide or by installing this libary in such a way that
+it is found first. This is not recommended and should you do so then
+make sure you have a way to recover.
+
+==================================================================
+OUTPUT
+
+Output of stats to stderr is at most once every five seconds but may
+be longer. If the program being monitored is not making
+allocation/free calls then there may not be any output. Following is
+some representative log output. The allocations size histogram is a
+little odd as it doesn't express the number of allocations in a size
+range but rather the number of bytes living in allocations in that
+range. It would be useful to log both histograms.
+
+========== dmalloc v0.5: UTC Sun Nov 29 00:57:09 2020 ==========
+overall allocations:      4,294,967,295
+current allocations:      4,294,967,295
+current alloc bytes:      0
+
+debug stats enabled:
+age underruns:            0
+size underruns:           0
+lock errors:              0
+declined updates:         0
+
+histogram: allocation size: (one # represents approx 90353 bytes)
+0    -    4: .
+4    -    8: .
+8    -   16: .
+16   -   32: .
+32   -   64: .
+64   -  128: #.
+128  -  256: ##.
+256  -  512: ####.
+512  - 1024: ########.
+1024 - 2048: ################.
+2048 - 4096: #################################.
+4096 - infi: ###################################################################.
+
+histogram: allocations age: (one # represents appox 1471  allocs)
+<    10 sec: .
+<   100 sec: .
+<  1000 sec: ######.
+>= 1000 sec: ###################################################################.
+
+
+==================================================================
+NOTES - ALLOCATION BY AGE
+
+Current allocations by age: ( # = 8,123 current allocations)
+< 1 sec: ###
+< 10 sec: ##
+< 100 sec: ##
+< 1000 sec: ######################### > 1000 sec:
+
+
+We keep an array of 1000 age buckets, each bucket holds the count of
+allocations sharing that birthday. For instance, a count of 3 at index
+4 (the 5th position) indicates we have 3 allocations that have
+persisted for five seconds. We update the list opportunistically and
+only if the elapsed time since the last update is more than one
+second.
+
+There is a loss of accuracy in the first bucket. We don't know how
+long an allocation has really existed during that first second. It may
+have entered that bucket only a few milliseconds before a one second
+boundary and then finds itself quickly promoted to the next
+bucket. For subsequent time slots all promotions are accurate,
+i.e. errors don't accumulate.
+
+We hide some birthday magic in extra bytes in the header of each
+allocation so that on free() we can decrement the count in the correct
+bucket as well as the count of allocated bytes.
+
+NOTES - REENTRANCY
+
+As we process an allocation call, things like printf() and other
+routines call internally call more alloc() routine causing us to
+reenter ourselves. If we block then we hang the library. To prevent
+this we acknoweldge that we are reentrant and take steps to prevent
+issues.
+
+==================================================================
+PROBLEMS
+
+* TRACKING TOTALS Tracking total allocated bytes can be tricky. Some
+  libraries allocate memory on the first call and don't free it
+  (printf). When loading a program from the shell we may end up
+  intercepting free calls for memory we didn't allocate.
+
+* The library stores cookies before the user allocation. As implemnted
+  this would unalign calls to valloc() and aligned_alloc() so they are
+  unimplemented for now.
+
+==================================================================
+TODO
+
+* realloc() - Currently realloc() statistics gathering treats a
+realloc as a free followed by an alloc. This loses precision on the
+lifetime of the allocation. A bettr implementation might notice that
+the base pointer has not changed and simnply update the total bytes
+allocated as a result.
+
+

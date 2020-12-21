@@ -1,0 +1,20 @@
+from src do make --warn-undefined-variables -f Makefile.unit unit
+
+docker build . -t ubuntu-dev
+docker run -it -v `pwd`:/home/ubuntu/dev ubuntu-dev:latest
+
+Guys-MacBook-Air:test guyerb$ lldb ./malloc
+(lldb) target create "./malloc"
+Current executable set to '/Users/guyerb/Development/verkada/dmalloc/test/malloc' (x86_64).
+(lldb) process launch --environment DYLD_FALLBACK_LIBRARY_PATH=/Users/guyerb/Development/verkada/dmalloc/src
+
+
+export DYLD_FALLBACK_LIBRARY_PATH=/Users/guyerb/Development/verkada/dmalloc/src
+./checks
+
+
+$(target): checks.o
+	gcc -g   $^  -o $@ -L /Users/guyerb/Development/verkada/dmalloc/src -ldmalloc
+
+
+LD_PRELOAD=../src/libdmalloc.so ./checks
