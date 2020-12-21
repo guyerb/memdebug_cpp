@@ -30,6 +30,7 @@ clean:
 	make -f Makefile.unit_test clean
 	make -f Makefile.unit_test_cookie clean
 	make -f Makefile.unit_test_stat clean
+	make -f Makefile.unit_test_dmalloc clean
 
 distclean: clean
 	rm -f *.dylib *.so

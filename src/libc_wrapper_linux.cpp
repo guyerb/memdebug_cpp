@@ -35,6 +35,7 @@ static void * my_malloc(size_t size)
   void *ptr;
   UNUSED(size);
 
+  dputc('E');
   ptr = &dmalloc_preinit_buffer[dmalloc_row][0];
   memset(ptr, 0, DMALLOC_PREINIT_SIZE);
   dmalloc_row = (dmalloc_row + 1) % DMALLOC_PREINIT_ROWS;
@@ -45,14 +46,14 @@ static void * my_malloc(size_t size)
 void __attribute__ ((constructor)) libc_wrapper_init(void)
 {
   /* fish for pointers to actual malloc routines */
-  dputc('!');
+  dputc('@');
   libc_callocp = (calloc_t)dlsym(RTLD_NEXT, "calloc");
   libc_freep = (free_t)dlsym(RTLD_NEXT, "free");
   libc_mallocp = (malloc_t)dlsym(RTLD_NEXT, "malloc");
   libc_reallocfp = (realloc_t)dlsym(RTLD_NEXT, "reallocf");
   libc_reallocp = (realloc_t)dlsym(RTLD_NEXT, "realloc");
   //  dmalloc_printf("c %p, f %p, m %p r %p\n", libc_callocp, libc_freep, libc_mallocp, libc_reallocp);
-  dputc('!');
+  dputc('<');
 }
 
 int libc_wrappers_initialized()
@@ -66,10 +67,8 @@ void * libc_calloc_wrapper(size_t count, size_t size)
 
   dputc('C');
   if (!libc_callocp) {
-    dputc('E');
     ptr = my_malloc(size);
   } else {
-    dputc('>');
     ptr = libc_callocp(count, size);
   }
   return ptr;
@@ -80,10 +79,9 @@ void libc_free_wrapper(void *ptr)
   dputc('F');
   if (ptr >= (void *)dmalloc_preinit_buffer &&
       ptr < ((void *)(dmalloc_preinit_buffer + sizeof(dmalloc_preinit_buffer)))) {
-    dputc('e');
+    dputc('*');
   } else {
     if (libc_freep) {
-      dputc('>');
       libc_freep(ptr);
     } else {
       dputc('?');	/* we can leak a bit on load (maybe a shell allocation? */
@@ -97,10 +95,8 @@ void * libc_malloc_wrapper(size_t size)
 
   dputc('M');
   if (!libc_mallocp) {
-    dputc('E');
     ptr = my_malloc(size);
   } else {
-    dputc('>');
     ptr = libc_mallocp(size);
   }
   return ptr;
@@ -112,22 +108,7 @@ void * libc_realloc_wrapper(void *ptr, size_t size)
 
   dputc('R');
   if (libc_reallocp) {
-    dputc('>');
     p = libc_reallocp(ptr, size);
-  } else {
-    dputc('?');
-  }
-  return p;
-}
-
-void * libc_reallocf_wrapper(void *ptr, size_t size)
-{
-  void *p = NULL;
-
-  dputc('S');
-  if (libc_reallocp) {
-    dputc('>');
-    p = libc_reallocfp(ptr, size);
   } else {
     dputc('?');
   }

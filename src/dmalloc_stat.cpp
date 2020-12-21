@@ -71,7 +71,7 @@ void dmalloc_stat::_s_agebucket_update(std::time_t now)
   }
   _s_ageupdate = now;
 
-  dputc('A');
+  dputc('u');
   std::vector<int>::size_type i = _s_agebucket_cnt.size();
   for ( ; i > 0; i--) {
     std::vector<int>::size_type src_ndx = i - 1;
@@ -120,14 +120,16 @@ void dmalloc_stat::_s_dump_scaled(std::string &hdr, unsigned count, unsigned sca
   if (depth == 0)
     std::cout << hdr << ": ";
 
-  if (count < scaler) {
-    if (count > 0)
-      printf(".");	/* partial # */
-  } else {
-    printf("#");
-    depth++;
-    _s_dump_scaled(hdr, count - scaler, scaler);
-    depth--;
+  if (scaler) {
+    if (count < scaler) {
+      if (count > 0)
+        printf(".");	/* partial # */
+    } else {
+      printf("#");
+      depth++;
+      _s_dump_scaled(hdr, count - scaler, scaler);
+      depth--;
+    }
   }
   if (depth == 0) printf("\n");
 }
@@ -164,7 +166,7 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   struct tm *pgm = nullptr;
   char * pgm_str = nullptr;
 
-  dputc('D');
+  dputc('!');
 
   pgm = std::gmtime(&now);
   pgm_str= std::asctime(pgm);
@@ -222,12 +224,15 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
 
 void dmalloc_stat::s_agebucket_insert(std::time_t now)
 {
+  dputc('i');
   _s_agebucket_update(now);
   _s_agebucket_cnt[0]++;
+  dputc('<');
 }
 
 void dmalloc_stat::s_agebucket_delete(std::time_t now, std::time_t birth)
 {
+  dputc('d');
   _s_agebucket_update(now);
   int ndx = _s_agebucket_ndx(now, birth);
   if (ndx != -1 && _s_agebucket_cnt[ndx] != 0) {
@@ -235,6 +240,7 @@ void dmalloc_stat::s_agebucket_delete(std::time_t now, std::time_t birth)
   } else {
     _s_underrun_age++;
   }
+  dputc('<');
 }
 
 void dmalloc_stat::s_alloc(std::size_t sz, std::time_t now)
@@ -242,14 +248,15 @@ void dmalloc_stat::s_alloc(std::size_t sz, std::time_t now)
   int ndx = _s_szebucket_ndx(sz);
   std::unique_lock lck {_s_m};
 
+  dputc('+');
   _s_curr_bytes += sz;
   _s_curr_alloc ++;
   _s_allt_alloc ++;
-  _s_szebucket_cnt[ndx] ++;
+  _s_szebucket_cnt[ndx] += 1;
   _s_szebucket_sze[ndx] += sz;
   s_agebucket_insert(now);
   lck.unlock();
-
+  dputc('<');
   s_dump(now);
 }
 
@@ -258,6 +265,7 @@ void dmalloc_stat::s_free(std::size_t sz, std::time_t now, std::time_t birth)
   int ndx = _s_szebucket_ndx(sz);
   std::unique_lock lck {_s_m};
 
+  dputc('-');
   if ((_s_curr_bytes >= sz) && _s_szebucket_cnt[ndx] && (_s_szebucket_sze[ndx] >= sz)) {
     _s_curr_bytes -= sz;
     _s_curr_alloc--;
@@ -275,6 +283,7 @@ void dmalloc_stat::s_dump(std::time_t now)
 {
   std::unique_lock lck {_s_m};
 
+  dputc('d');
   if (_s_logupdate == 0) {
     _s_logupdate = now;
     lck.unlock();
@@ -307,12 +316,18 @@ int main()
 {
   std::time_t t_0    = std::time(nullptr);
   std::time_t t_1    = t_0 + 1;
+  std::time_t t_5    = t_0 + 5;
   std::time_t t_999  = t_0 + 999;
   std::time_t t_1004 = t_0 + 1004;
   std::time_t t_1500 = t_0 + 1500;
   std::time_t t_2000 = t_0 + 2000;
 
   ut.ut_start_unit("");
+
+  ut.ut_start_section("exercise empty dump");
+  dmalloc_stat my_stat0;
+  my_stat0.s_dump(t_0);
+  my_stat0.s_dump(t_5);
 
   dmalloc_stat my_stat1;
   ut.ut_start_section("exercise my_stat1 primitives");
