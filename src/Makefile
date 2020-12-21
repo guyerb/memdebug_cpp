@@ -1,5 +1,5 @@
 # -*- MakeFile -*-
-sources := dmalloc.cpp dmalloc_stat.cpp
+sources := dmalloc.cpp dmalloc_stat.cpp dmalloc_log.cpp
 objects = $(sources:.cpp=.o)
 depends := $(objects:.o=.d)
 

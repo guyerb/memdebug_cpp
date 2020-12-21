@@ -9,6 +9,6 @@
       :object-name "libdmalloc"
       :name "libdmalloc"
       :path ""
-      :source '("dmalloc.cpp" "dmalloc_intercept_linux.cpp" "dmalloc_intercept_darwin.cpp" "dmalloc_stat.cpp" "libc_wrapper_linux.cpp" "unit_test.cpp" "unit_test_cookie.cpp")
+      :source '("dmalloc.cpp" "dmalloc_intercept_linux.cpp" "dmalloc_intercept_darwin.cpp" "dmalloc_stat.cpp" "libc_wrapper_linux.cpp" "unit_test.cpp" "unit_test_cookie.cpp" "dmalloc_log.cpp")
       :auxsource '("dmalloc_stat.h" "dmalloc_version.h" "libc_wrapper.h" "unit_test.h" "dmalloc.h" "dmalloc_cookie.h" "dmalloc_log.h")))
   :object-name "dmalloc")

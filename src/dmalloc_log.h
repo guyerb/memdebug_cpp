@@ -1,5 +1,5 @@
-#ifndef DMALLOC_LOGS_H
-#define DMALLOC_LOGS_H
+#ifndef DMALLOC_LOG_H
+#define DMALLOC_LOG_H
 
 #include <cstdio>
 
@@ -9,5 +9,6 @@
 #define dputc(x) do {} while(0)
 #endif	/* DMALLOC_DEBUG */
 
-#endif	/* DMALLOC_LOGS_H */
+void dprintf( const char* format, ... );
 
+#endif	/* DMALLOC_LOG_H */

@@ -122,15 +122,15 @@ void dmalloc_stat::_s_dump_scaled(std::string &hdr, unsigned count, unsigned sca
   if (scaler) {
     if (count < scaler) {
       if (count > 0)
-        printf(".");	/* partial # */
+        dprintf(".");	/* partial # */
     } else {
-      printf("#");
+      dprintf("#");
       depth++;
       _s_dump_scaled(hdr, count - scaler, scaler);
       depth--;
     }
   }
-  if (depth == 0) printf("\n");
+  if (depth == 0) dprintf("\n");
 }
 
 unsigned dmalloc_stat::_s_dump_range_cnt(std::vector<unsigned> &rv, unsigned floor, unsigned ceiling)
@@ -153,11 +153,11 @@ void dmalloc_stat::_s_dump_range_scaled(std::string &hdr, std::vector<unsigned> 
 void dmalloc_stat::_s_dump_with_sep (unsigned n, char sep)
 {
   if (n < 1000) {
-    printf ("%d", n);
+    dprintf ("%d", n);
     return;
   }
   _s_dump_with_sep(n/1000);
-  printf ("%c%03d", sep, n%1000);
+  dprintf ("%c%03d", sep, n%1000);
 }
 
 void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
@@ -171,21 +171,21 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   pgm_str= std::asctime(pgm);
   pgm_str[24] = '\0';		/* kill the newline with bravado */
 
-  printf("========== %s: UTC %s ==========\n", DMALLOC_VERSION_STRING, pgm_str);
-  printf("%-26s", "overall allocations:" );
-  _s_dump_with_sep(_s_allt_alloc); printf("\n");
-  printf("%-26s", "current allocations:" );
-  _s_dump_with_sep(_s_curr_alloc); printf("\n");
-  printf("%-26s", "current alloc bytes:" );
-  _s_dump_with_sep(_s_curr_bytes); printf("\n");
+  dprintf("========== %s: UTC %s ==========\n", DMALLOC_VERSION_STRING, pgm_str);
+  dprintf("%-26s", "overall allocations:" );
+  _s_dump_with_sep(_s_allt_alloc); dprintf("\n");
+  dprintf("%-26s", "current allocations:" );
+  _s_dump_with_sep(_s_curr_alloc); dprintf("\n");
+  dprintf("%-26s", "current alloc bytes:" );
+  _s_dump_with_sep(_s_curr_bytes); dprintf("\n");
 
-  printf("\ninternals:\n");
-  printf("%-25s %d\n", "null frees:", _s_null_free);
-  printf("%-25s %d\n", "failed allocs:", _s_fail_alloc);
-  printf("%-25s %d\n", "age underruns:", _s_underrun_age);
-  printf("%-25s %d\n", "size underruns:", _s_underrun_bytes);
-  printf("%-25s %d\n", "invalid_birthday:", _s_invalid_birthday);
-  printf("\n");
+  dprintf("\ninternals:\n");
+  dprintf("%-25s %d\n", "null frees:", _s_null_free);
+  dprintf("%-25s %d\n", "failed allocs:", _s_fail_alloc);
+  dprintf("%-25s %d\n", "age underruns:", _s_underrun_age);
+  dprintf("%-25s %d\n", "size underruns:", _s_underrun_bytes);
+  dprintf("%-25s %d\n", "invalid_birthday:", _s_invalid_birthday);
+  dprintf("\n");
 
   std::vector<std::string> sze_hdr = {
     "0    -    4",  "4    -    8", "8    -   16",  "16   -   32",
@@ -195,26 +195,26 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
 
   /* number of allocations living in size bucket*/
   unsigned scaler_cnt = _s_dump_scaler(_s_szebucket_largest(_s_szebucket_cnt), 68);
-  printf("histogram: allocs: (one # represents approx %d allocs)\n", scaler_cnt);
+  dprintf("histogram: allocs: (one # represents approx %d allocs)\n", scaler_cnt);
   for (unsigned i = 0; i < szesz; i++) {
     _s_dump_scaled(sze_hdr[i],	_s_szebucket_cnt[i], scaler_cnt);
   }
-  printf("\n");
+  dprintf("\n");
 
   /* number of bytes living in size bucket. */
   unsigned scaler_sze = _s_dump_scaler(_s_szebucket_largest(_s_szebucket_sze), 68);
-  printf("histogram: bytes: (one # represents approx %d bytes)\n", scaler_sze);
+  dprintf("histogram: bytes: (one # represents approx %d bytes)\n", scaler_sze);
   for (unsigned i = 0; i < szesz; i++) {
     _s_dump_scaled(sze_hdr[i],	_s_szebucket_sze[i], scaler_sze);
   }
-  printf("\n");
+  dprintf("\n");
 
   /* dump age buckets */
   unsigned scaler_age = _s_dump_scaler(_s_agebucket_largest(), 68);
   std::vector<std::string> age_hdr = {
     "<    10 sec", "<   100 sec", "<  1000 sec", ">= 1000 sec"
   };
-  printf("histogram: alloc ages: (one # represents appox %d  allocs)\n", scaler_age);
+  dprintf("histogram: alloc ages: (one # represents appox %d  allocs)\n", scaler_age);
   _s_dump_range_scaled(age_hdr[0], _s_agebucket_cnt, 0, 9, scaler_age);
   _s_dump_range_scaled(age_hdr[1], _s_agebucket_cnt, 10, 99, scaler_age);
   _s_dump_range_scaled(age_hdr[2], _s_agebucket_cnt, 100, 998, scaler_age);
