@@ -27,8 +27,8 @@ class dmalloc_stat {
   std::vector<unsigned> _s_szebucket_cnt = std::vector<unsigned>(szesz, 0);
   std::vector<unsigned> _s_szebucket_sze = std::vector<unsigned>(szesz, 0);
   std::vector<unsigned> _s_agebucket_cnt = std::vector<unsigned>(agesz, 0);
-  std::time_t   _s_ageupdate;
-  std::time_t   _s_logupdate;
+  std::time_t _s_ageupdate {0};
+  std::time_t _s_logupdate {0};
 
   /* internal debugging */
   unsigned _s_null_free {0};
@@ -42,13 +42,15 @@ class dmalloc_stat {
 
   void _s_agebucket_update(std::time_t now);
 
-
   int _s_szebucket_ndx(std::size_t sz);
   int  _s_agebucket_ndx(std::time_t now, std::time_t birth);
 
   unsigned  _s_dump_scaler(unsigned largest, unsigned columns);
   void _s_dump_scaled(std::string &hdr, unsigned count, unsigned scaler);
-  void _s_dump_range_scaled(std::string &hdr, std::vector<unsigned> &rv, unsigned floor, unsigned ceiling, unsigned scaler);
+  unsigned _s_dump_range_cnt(std::vector<unsigned> &rv, unsigned floor, \
+                                           unsigned ceiling);
+  void _s_dump_range_scaled(std::string &hdr, std::vector<unsigned> &rv, \
+                            unsigned floor, unsigned ceiling, unsigned scaler);
   void _s_dump_with_sep(unsigned n, char sep = ',');
   void _s_dump_self(std::time_t) noexcept;
 

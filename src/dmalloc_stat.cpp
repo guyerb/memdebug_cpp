@@ -132,13 +132,18 @@ void dmalloc_stat::_s_dump_scaled(std::string &hdr, unsigned count, unsigned sca
   if (depth == 0) printf("\n");
 }
 
-void dmalloc_stat::_s_dump_range_scaled(std::string &hdr, std::vector<unsigned> &rv, unsigned floor, unsigned ceiling, unsigned scaler)
+unsigned dmalloc_stat::_s_dump_range_cnt(std::vector<unsigned> &rv, unsigned floor, unsigned ceiling)
 {
   unsigned count = 0;
 
   for ( unsigned i=floor; i <= ceiling; i++) {
     count += rv[i];
   }
+  return count;
+}
+void dmalloc_stat::_s_dump_range_scaled(std::string &hdr, std::vector<unsigned> &rv, unsigned floor, unsigned ceiling, unsigned scaler)
+{
+  unsigned count = _s_dump_range_cnt(rv, floor, ceiling);
   _s_dump_scaled(hdr, count, scaler);
 }
 
@@ -211,8 +216,8 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   printf("histogram: alloc ages: (one # represents appox %d  allocs)\n", scaler_age);
   _s_dump_range_scaled(age_hdr[0], _s_agebucket_cnt, 0, 9, scaler_age);
   _s_dump_range_scaled(age_hdr[1], _s_agebucket_cnt, 10, 99, scaler_age);
-  _s_dump_range_scaled(age_hdr[2], _s_agebucket_cnt, 100, 999, scaler_age);
-  _s_dump_range_scaled(age_hdr[3], _s_agebucket_cnt, 999, 1000, scaler_age);
+  _s_dump_range_scaled(age_hdr[2], _s_agebucket_cnt, 100, 998, scaler_age);
+  _s_dump_range_scaled(age_hdr[3], _s_agebucket_cnt, 999, 999, scaler_age);
 }
 
 void dmalloc_stat::s_agebucket_insert(std::time_t now)
@@ -281,7 +286,9 @@ void dmalloc_stat::s_dump(std::time_t now)
   }
 
   _s_logupdate = now;
-  dmalloc_stat copy = gstat;
+
+  // make a copy so we it is coherent while dumping
+  dmalloc_stat copy = *this;
 
   lck.unlock();
 
@@ -301,6 +308,7 @@ int main()
   std::time_t t_0    = std::time(nullptr);
   std::time_t t_1    = t_0 + 1;
   std::time_t t_999  = t_0 + 999;
+  std::time_t t_1004 = t_0 + 1004;
   std::time_t t_1500 = t_0 + 1500;
   std::time_t t_2000 = t_0 + 2000;
 
@@ -332,6 +340,25 @@ int main()
   ut.ut_check("agebucket scaler", (unsigned)2, my_stat1._s_dump_scaler(69, 68));
   ut.ut_check("agebucket scaler", (unsigned)2, my_stat1._s_dump_scaler(136, 68));
   ut.ut_check("agebucket scaler", (unsigned)3, my_stat1._s_dump_scaler(137, 68));
+
+  for (int i=0; i< 30000; i++) {
+    my_stat1.s_alloc(1, t_0);
+  }
+  ut.ut_mark("mark 1");
+  my_stat1.s_alloc(1, t_999);
+  ut.ut_check("current allocated bytes", (unsigned)30070, my_stat1._s_curr_bytes);
+  ut.ut_check("age bucket 999", (unsigned)30001, my_stat1._s_agebucket_cnt[999]);
+
+  ut.ut_check("age bucket range 1", (unsigned) 1, my_stat1._s_dump_range_cnt(my_stat1._s_agebucket_cnt, 0, 9));
+  ut.ut_check("age bucket range 2", (unsigned) 0, my_stat1._s_dump_range_cnt(my_stat1._s_agebucket_cnt, 10, 99));
+  ut.ut_check("age bucket range 3", (unsigned) 0, my_stat1._s_dump_range_cnt(my_stat1._s_agebucket_cnt, 100, 998));
+  ut.ut_check("age bucket range 4", (unsigned) 30001, my_stat1._s_dump_range_cnt(my_stat1._s_agebucket_cnt, 999, 999));
+
+  ut.ut_mark("mark 2");
+  for (int i=0; i< 10000; i++) {
+    my_stat1.s_alloc(128, t_999);
+  }
+  my_stat1.s_alloc(128, t_1004);
 
   /*alloc sz	birthday
     0		t_0
