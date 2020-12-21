@@ -1,5 +1,5 @@
 # -*- MakeFile -*-
-# unit test for storing/retrieving/verifyin cookie
+# unit test for storing/retrieving/verifying cookie
 #
 
 sources := unit_test_cookie.cpp
@@ -9,7 +9,7 @@ depends := $(objects:.o=.d)
 target := unit_test_cookie
 
 %.o:%.cpp
-	g++ -std=c++14 -g -Wall -Wextra -Werror -c $< -o $@
+	g++ -std=c++17 -g -Wall -Wextra -Werror -c $< -o $@
 	@gcc -MM $*.cpp > $*.d
 
 $(target):$(objects)

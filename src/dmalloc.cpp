@@ -10,6 +10,13 @@
 #include "dmalloc_stat.h"
 #include "libc_wrapper.h"
 
+#ifdef DMALLOC_UNIT_TEST_DMALLOC
+#define libc_calloc_wrapper calloc
+#define libc_free_wrapper free
+#define libc_malloc_wrapper malloc
+#define libc_realloc_wrapper realloc
+#endif
+
 #ifdef DMALLOC_PASSTHROUGH
 void * dmalloc_calloc(size_t count, size_t size)
 {
@@ -103,3 +110,24 @@ void * dmalloc_realloc(void *ptr, size_t size)
 
 #endif // DMALLOC_PASSTHROUGH
 
+/* ************************************************************************** */
+#ifdef DMALLOC_UNIT_TEST_DMALLOC
+
+#include "unit_test.h"
+
+unit_test ut;
+
+int main()
+{
+  void *ptr = dmalloc_malloc(32);
+
+  ut.ut_check_ne("alloc 32 bytes", (void *)0L, ptr);
+
+  ptr = dmalloc_realloc(ptr, 64);
+  ut.ut_check_ne("realloc 64 bytes", (void *)0L, ptr);
+  dmalloc_free(ptr);
+  dmalloc_free(nullptr);
+}
+
+
+#endif // DMALLOC_UNIT_TEST_DMALLOC

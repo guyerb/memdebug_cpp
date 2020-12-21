@@ -1,6 +1,8 @@
 #ifndef DMALLOC_COOKIE_H
 #define DMALLOC_COOKIE_H
 
+#include <cstdint>
+
 class dmalloc_cookie {
  private:
   /* | MAGIC | TSTAMP | SIZE | USER DATA | */

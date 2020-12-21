@@ -9,7 +9,7 @@ depends := $(objects:.o=.d)
 target := unit_test
 
 %.o:%.cpp
-	g++ -std=c++14 -g -Wall -Wextra -Werror -c $< -o $@
+	g++ -std=c++17 -g -Wall -Wextra -Werror -c $< -o $@
 	@gcc -MM $*.cpp > $*.d
 
 $(target):$(objects)
