@@ -3,7 +3,6 @@
 #include <array>
 #include <cstdio>
 
-
 std::mt19937 engine;
 
 void spinner()
@@ -16,6 +15,7 @@ void spinner()
   int i = 0;
 
   do {
+    if (i % 100000 == 0) putc('~', stderr);
     if (!p) p  = malloc(dist(engine));
     if (p2) { free(p2); p2 = nullptr;}
     if (!p1) p1 = malloc(dist(engine));
@@ -31,12 +31,11 @@ int main()
 {
   std::random_device rd;
   std::array<int, std::mt19937::state_size> seed_data;
-  std::generate_n(seed_data.data(), seed_data.size(), std::ref(rd));
+  //  std::generate_n(seed_data.data(), seed_data.size(), std::ref(rd));
   std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
   std::mt19937 gen(seq);
 
   printf("CTRL-C to exit\n");
-
 
   std::thread t1 (spinner);
   std::thread t2 (spinner);
@@ -48,7 +47,7 @@ int main()
   t3.join();
   t4.join();
 
-  printf("120 million threaded mallocs and frees completed\n");
+  printf("160 million threaded mallocs and frees completed\n");
 
   return 0;
 }

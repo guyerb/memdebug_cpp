@@ -18,3 +18,5 @@ $(target): checks.o
 
 
 LD_PRELOAD=../src/libdmalloc.so ./checks
+
+docker run -it -v `pwd`:/home/ubuntu/dev ubuntu-dev:latest

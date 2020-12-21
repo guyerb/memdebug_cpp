@@ -10,13 +10,6 @@
 #include "dmalloc_stat.h"
 #include "libc_wrapper.h"
 
-#ifdef DMALLOC_UNIT_TEST_DMALLOC
-#define libc_calloc_wrapper calloc
-#define libc_free_wrapper free
-#define libc_malloc_wrapper malloc
-#define libc_realloc_wrapper realloc
-#endif
-
 #ifdef DMALLOC_PASSTHROUGH
 void * dmalloc_calloc(size_t count, size_t size)
 {
@@ -44,6 +37,14 @@ void * dmalloc_realloc(void *ptr, size_t size)
 }
 #else  // DMALLOC_PASSTHROUGH
 
+dmalloc_stat *pstat = nullptr;
+void __attribute__ ((constructor)) dmalloc_stat_init(void)
+{
+  dputc('(');
+  pstat = new (dmalloc_stat);
+  dputc(')');
+}
+
 void * dmalloc_calloc(size_t count, size_t size)
 {
   void *ptr = NULL;
@@ -52,9 +53,9 @@ void * dmalloc_calloc(size_t count, size_t size)
 
   dputc('c');
   ptr = libc_calloc_wrapper(count, size + cookie.size());
-  if (ptr) {
+  if (pstat && ptr) {
     ptr = cookie.cookie(ptr, now, size);
-    gstat.s_alloc(size, now);
+    pstat->s_alloc(size, now);
   }
   return ptr;
 }
@@ -65,8 +66,8 @@ void dmalloc_free(void *ptr)
   dmalloc_cookie cookie;
 
   dputc('f');
-  if (cookie.ours(ptr)) {
-    gstat.s_free(cookie.bytes(ptr), now, cookie.birthday(ptr));
+  if (pstat && cookie.ours(ptr)) {
+    pstat->s_free(cookie.bytes(ptr), now, cookie.birthday(ptr));
     ptr = cookie.base(ptr);
   }
   libc_free_wrapper(ptr);
@@ -81,9 +82,9 @@ void * dmalloc_malloc(size_t size)
 
   dputc('m');
   ptr = libc_malloc_wrapper(size + cookie.size());
-  if (ptr) {
+  if (pstat && ptr) {
     ptr = cookie.cookie(ptr, now, size);
-    gstat.s_alloc(size, now);
+    pstat->s_alloc(size, now);
   }
   return ptr;
 }
@@ -95,15 +96,15 @@ void * dmalloc_realloc(void *ptr, size_t size)
   dmalloc_cookie cookie;
 
   dputc('r');
-  if (ptr && cookie.ours(ptr)) {
-    gstat.s_free(cookie.bytes(ptr), now, cookie.birthday(ptr));
+  if (pstat && ptr && cookie.ours(ptr)) {
+    pstat->s_free(cookie.bytes(ptr), now, cookie.birthday(ptr));
     ptr = cookie.base(ptr);
   }
 
   p = libc_realloc_wrapper(ptr, size + cookie.size());
-  if (p) {
+  if (pstat && p) {
     p = cookie.cookie(p, now, size);
-    gstat.s_alloc(size, now);
+    pstat->s_alloc(size, now);
   }
   return p;
 }

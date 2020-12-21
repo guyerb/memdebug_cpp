@@ -1,5 +1,6 @@
 //#define _GNU_SOURCE		/* for dlsym */
 
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstdint>
@@ -19,12 +20,11 @@ static calloc_t	  libc_callocp = NULL;
 static free_t	  libc_freep = NULL;
 static malloc_t	  libc_mallocp = NULL;
 static realloc_t  libc_reallocp = NULL;
-static reallocf_t libc_reallocfp = NULL;
 
 /* my_malloc() - simple memory for early allocations from dlym(),
    before we have resolved libc routines */
 #define DMALLOC_PREINIT_ROWS 10
-#define DMALLOC_PREINIT_SIZE 2048
+#define DMALLOC_PREINIT_SIZE 8192
 static uint8_t dmalloc_preinit_buffer[DMALLOC_PREINIT_ROWS][DMALLOC_PREINIT_SIZE];
 static uint8_t dmalloc_row = 0;
 
@@ -50,9 +50,8 @@ void __attribute__ ((constructor)) libc_wrapper_init(void)
   libc_callocp = (calloc_t)dlsym(RTLD_NEXT, "calloc");
   libc_freep = (free_t)dlsym(RTLD_NEXT, "free");
   libc_mallocp = (malloc_t)dlsym(RTLD_NEXT, "malloc");
-  libc_reallocfp = (realloc_t)dlsym(RTLD_NEXT, "reallocf");
   libc_reallocp = (realloc_t)dlsym(RTLD_NEXT, "realloc");
-  //  dmalloc_printf("c %p, f %p, m %p r %p\n", libc_callocp, libc_freep, libc_mallocp, libc_reallocp);
+  //  printf("c %p, f %p, m %p r %p\n", libc_callocp, libc_freep, libc_mallocp, libc_reallocp);
   dputc('<');
 }
 

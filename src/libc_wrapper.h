@@ -11,9 +11,9 @@ extern void * libc_realloc_wrapper(void *, size_t);
 #endif
 
 #ifdef DARWIN
-#define libc_calloc_wrapper		calloc
-#define libc_free_wrapper		free
-#define libc_malloc_wrapper		malloc
+#define libc_calloc_wrapper	calloc
+#define libc_free_wrapper	free
+#define libc_malloc_wrapper	malloc
 #define libc_realloc_wrapper	realloc
 #endif
 

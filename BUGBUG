@@ -1,1 +1,3 @@
 
+I couldn't generate seed data on Linux with following:
+std::generate_n(seed_data.data(), seed_data.size(), std::ref(rd));
