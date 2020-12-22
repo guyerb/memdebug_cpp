@@ -42,15 +42,15 @@ unsigned  dmalloc_stat::_s_szebucket_largest(const std::vector<unsigned> &rv)
   return largest;
 }
 
-int dmalloc_stat::_s_agebucket_ndx(std::time_t now, std::time_t birth)
+int dmalloc_stat::_s_agebucket_ndx(std::time_t birth)
 {
   int ndx = -1;
 
-  if (birth > now) {
+  if (birth > _s_ageupdate) {
     _s_invalid_birthday++;
     ndx = -1;
   } else {
-    ndx = now - birth;
+    ndx = _s_ageupdate - birth;
     if (ndx > 999) ndx = 999;
   }
   return ndx;
@@ -187,13 +187,14 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   dprintf("%-26s", "current alloc bytes:" );
   _s_dump_with_sep(_s_curr_bytes); dprintf("\n");
 
+#ifdef DMALLOC_INTERNALS
   dprintf("\ninternals:\n");
-  dprintf("%-25s %d\n", "null frees:", _s_null_free);
-  dprintf("%-25s %d\n", "failed allocs:", _s_fail_alloc);
   dprintf("%-25s %d\n", "age underruns:", _s_underrun_age);
+  dprintf("%-25s %d\n", "age failed ins:", _s_failed_age);
   dprintf("%-25s %d\n", "size underruns:", _s_underrun_bytes);
   dprintf("%-25s %d\n", "invalid_birthday:", _s_invalid_birthday);
   dprintf("\n");
+#endif
 
   std::vector<std::string> sze_hdr = {
     "0    -    4",  "4    -    8", "8    -   16",  "16   -   32",
@@ -233,14 +234,22 @@ void dmalloc_stat::s_agebucket_insert(std::time_t now)
 {
   dputc('i');
   _s_agebucket_update(now);
-  _s_agebucket_cnt[0]++;
+
+  /* the agebucket is now up to date and you would be tempted to stick
+     your new baby in bucket 0 but you would be wrong cuz
+     multithreading */
+  int ndx = _s_agebucket_ndx(now);
+  if (ndx >= 0) 
+    _s_agebucket_cnt[ndx]++;
+  else
+    _s_failed_age++;
 }
 
 void dmalloc_stat::s_agebucket_delete(std::time_t now, std::time_t birth)
 {
   dputc('d');
   _s_agebucket_update(now);
-  int ndx = _s_agebucket_ndx(now, birth);
+  int ndx = _s_agebucket_ndx(birth);
   if (ndx != -1 && _s_agebucket_cnt[ndx] != 0) {
     _s_agebucket_cnt[ndx]--;
   } else {

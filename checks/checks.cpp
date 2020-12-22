@@ -16,14 +16,21 @@ void spinner()
 
   do {
     if (i % 100000 == 0) putc('~', stderr);
+
     if (!p) p  = malloc(dist(engine));
-    if (p2) { free(p2); p2 = nullptr;}
+    if (p3) { free(p3); p3 = nullptr;}
+
     if (!p1) p1 = malloc(dist(engine));
     if (p) { free(p); p = nullptr;}
-    if (p3) { free(p3); p3 = nullptr;}
+
     if (!p2) p2 = malloc(dist(engine));
     if (p1) { free(p1); p1 = nullptr;}
+
     if (!p3) p3 = malloc(dist(engine));
+    if (p2) { free(p2); p2 = nullptr;}
+
+    //    usleep(rand() % 2000000);
+
   } while (i++  < 10000000);
 }
 

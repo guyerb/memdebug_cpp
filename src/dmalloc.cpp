@@ -46,8 +46,8 @@ void __attribute__ ((constructor)) dmalloc_stat_init(void)
 
 void * dmalloc_calloc(size_t count, size_t size)
 {
-  void *ptr = NULL;
-  std::time_t now = time(NULL);
+  void *ptr = nullptr;
+  std::time_t now = time(nullptr);
   dmalloc_cookie cookie;
 
   dputc('c');
@@ -61,7 +61,7 @@ void * dmalloc_calloc(size_t count, size_t size)
 
 void dmalloc_free(void *ptr)
 {
-  std::time_t now = std::time(NULL);
+  std::time_t now = std::time(nullptr);
   dmalloc_cookie cookie;
 
   dputc('f');
@@ -76,7 +76,7 @@ void dmalloc_free(void *ptr)
 void * dmalloc_malloc(size_t size)
 {
   dmalloc_cookie cookie;
-  std::time_t now = time(NULL);
+  std::time_t now = time(nullptr);
   void *ptr;
 
   dputc('m');
@@ -91,7 +91,7 @@ void * dmalloc_malloc(size_t size)
 void * dmalloc_realloc(void *ptr, size_t size)
 {
   void *p;
-  std::time_t now = std::time(NULL);
+  std::time_t now = std::time(nullptr);
   dmalloc_cookie cookie;
 
   dputc('r');

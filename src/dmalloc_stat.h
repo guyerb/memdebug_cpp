@@ -29,9 +29,8 @@ class dmalloc_stat {
   std::time_t _s_logupdate {0};
 
   /* internal debugging */
-  unsigned _s_null_free {0};
-  unsigned _s_fail_alloc {0};
   unsigned _s_underrun_age {0};
+  unsigned _s_failed_age {0};
   unsigned _s_underrun_bytes {0};
   unsigned _s_invalid_birthday {0};
 
@@ -41,7 +40,7 @@ class dmalloc_stat {
   void _s_agebucket_update(std::time_t now);
 
   int _s_szebucket_ndx(std::size_t sz);
-  int  _s_agebucket_ndx(std::time_t now, std::time_t birth);
+  int  _s_agebucket_ndx(std::time_t birth);
 
   unsigned  _s_dump_scaler(unsigned largest, unsigned columns);
   void _s_dump_scaled(std::string &hdr, unsigned count, unsigned scaler);
