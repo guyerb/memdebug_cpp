@@ -165,7 +165,10 @@ void dmalloc_stat::_s_dump_with_sep (unsigned n, char sep)
 
 void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
 {
-#ifdef LINUX
+#ifdef DARWIN			// BUGBUG
+  (void)(now);
+  const char * pgm_str = "gmtime hangs on Darwin in sharedlib";
+#else
   struct tm *pgm = nullptr;
   char * pgm_str = nullptr;
 
@@ -173,10 +176,6 @@ void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
   pgm = std::gmtime(&now);
   pgm_str= std::asctime(pgm);
   pgm_str[24] = '\0';		/* kill the newline with bravado */
-#endif
-#ifdef DARWIN			// BUGBUG
-  (void)(now);
-  const char * pgm_str = "gmtime hangs on Darwin in sharedlib";
 #endif
 
   dprintf("========== %s: UTC %s ==========\n", DMALLOC_VERSION_STRING, pgm_str);

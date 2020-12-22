@@ -2,7 +2,7 @@
 # unit test for stats modules
 #
 
-sources := dmalloc_stat.cpp
+sources := dmalloc_stat.cpp dmalloc_log.cpp
 objects := $(sources:.cpp=.o)
 depends := $(objects:.o=.d)
 
