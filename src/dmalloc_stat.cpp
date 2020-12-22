@@ -235,9 +235,8 @@ void dmalloc_stat::s_agebucket_insert(std::time_t now)
   dputc('i');
   _s_agebucket_update(now);
 
-  /* the agebucket is now up to date and you would be tempted to stick
-     your new baby in bucket 0 but you would be wrong cuz
-     multithreading */
+  /* the agebucket is guaranteed up to date but maybe in the future so
+     compute age ndx rather than assuming 0 */
   int ndx = _s_agebucket_ndx(now);
   if (ndx >= 0) 
     _s_agebucket_cnt[ndx]++;

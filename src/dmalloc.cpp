@@ -65,7 +65,7 @@ void dmalloc_free(void *ptr)
   dmalloc_cookie cookie;
 
   dputc('f');
-  if (pstat && cookie.ours(ptr)) {
+  if (pstat && ptr && cookie.ours(ptr)) {
     pstat->s_free(cookie.bytes(ptr), now, cookie.birthday(ptr));
     ptr = cookie.base(ptr);
   }
