@@ -64,6 +64,10 @@ void dmalloc_stat::_s_agebucket_update(std::time_t now)
 {
   std::time_t elapsed = 0;
 
+  if (now < _s_ageupdate) {
+    dputc('U');
+    return;
+  }
   elapsed = now - _s_ageupdate;
   if (elapsed == 0) {
     return;
@@ -117,7 +121,7 @@ void dmalloc_stat::_s_dump_scaled(std::string &hdr, unsigned count, unsigned sca
   static int depth = 0;
 
   if (depth == 0)
-    std::cout << hdr << ": ";
+    dprintf("%s: ", hdr.c_str());
 
   if (scaler) {
     if (count < scaler) {
@@ -148,7 +152,6 @@ void dmalloc_stat::_s_dump_range_scaled(std::string &hdr, std::vector<unsigned> 
   _s_dump_scaled(hdr, count, scaler);
 }
 
-
 /* value formatter (e.g. 1,000) from the interwebz */
 void dmalloc_stat::_s_dump_with_sep (unsigned n, char sep)
 {
@@ -162,14 +165,19 @@ void dmalloc_stat::_s_dump_with_sep (unsigned n, char sep)
 
 void dmalloc_stat::_s_dump_self(std::time_t now) noexcept
 {
+#ifdef LINUX
   struct tm *pgm = nullptr;
   char * pgm_str = nullptr;
 
   dputc('!');
-
   pgm = std::gmtime(&now);
   pgm_str= std::asctime(pgm);
   pgm_str[24] = '\0';		/* kill the newline with bravado */
+#endif
+#ifdef DARWIN			// BUGBUG
+  (void)(now);
+  const char * pgm_str = "gmtime hangs on Darwin in sharedlib";
+#endif
 
   dprintf("========== %s: UTC %s ==========\n", DMALLOC_VERSION_STRING, pgm_str);
   dprintf("%-26s", "overall allocations:" );
@@ -226,7 +234,6 @@ void dmalloc_stat::s_agebucket_insert(std::time_t now)
   dputc('i');
   _s_agebucket_update(now);
   _s_agebucket_cnt[0]++;
-  dputc('<');
 }
 
 void dmalloc_stat::s_agebucket_delete(std::time_t now, std::time_t birth)
@@ -239,7 +246,6 @@ void dmalloc_stat::s_agebucket_delete(std::time_t now, std::time_t birth)
   } else {
     _s_underrun_age++;
   }
-  dputc('<');
 }
 
 void dmalloc_stat::s_alloc(std::size_t sz, std::time_t now)
@@ -255,7 +261,6 @@ void dmalloc_stat::s_alloc(std::size_t sz, std::time_t now)
   _s_szebucket_sze[ndx] += sz;
   s_agebucket_insert(now);
   lck.unlock();
-  dputc('<');
   s_dump(now);
 }
 
@@ -282,9 +287,14 @@ void dmalloc_stat::s_dump(std::time_t now)
 {
   std::unique_lock lck {_s_m};
 
-  dputc('d');
   if (_s_logupdate == 0) {
     _s_logupdate = now;
+    lck.unlock();
+    return;
+  }
+  if (_s_logupdate > now) {
+    // old caller who was blocked
+    dputc('P');
     lck.unlock();
     return;
   }
@@ -292,15 +302,11 @@ void dmalloc_stat::s_dump(std::time_t now)
     lck.unlock();
     return;
   }
-
   _s_logupdate = now;
-
-  // make a copy so we it is coherent while dumping
-  dmalloc_stat copy = *this;
-
   lck.unlock();
 
-  // we have 5 seconds to dump before reentrancy becomes issue
+  dputc('p');
+  dmalloc_stat copy = *this;
   copy._s_dump_self(now);
 }
 

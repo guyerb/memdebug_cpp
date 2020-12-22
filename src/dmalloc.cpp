@@ -40,9 +40,8 @@ void * dmalloc_realloc(void *ptr, size_t size)
 dmalloc_stat *pstat = nullptr;
 void __attribute__ ((constructor)) dmalloc_stat_init(void)
 {
-  dputc('(');
+  dputc('&');
   pstat = new (dmalloc_stat);
-  dputc(')');
 }
 
 void * dmalloc_calloc(size_t count, size_t size)

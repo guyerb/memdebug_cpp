@@ -52,7 +52,6 @@ void __attribute__ ((constructor)) libc_wrapper_init(void)
   libc_mallocp = (malloc_t)dlsym(RTLD_NEXT, "malloc");
   libc_reallocp = (realloc_t)dlsym(RTLD_NEXT, "realloc");
   //  printf("c %p, f %p, m %p r %p\n", libc_callocp, libc_freep, libc_mallocp, libc_reallocp);
-  dputc('<');
 }
 
 int libc_wrappers_initialized()

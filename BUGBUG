@@ -1,3 +1,8 @@
 
-I couldn't generate seed data on Linux with following:
+BUG
+On Darwin the call to gmtime in self_dump hangs and I can't figure out
+why so it is commented out for now.
+
+BUG
+On Linux, I could not seed the random engine with:
 std::generate_n(seed_data.data(), seed_data.size(), std::ref(rd));

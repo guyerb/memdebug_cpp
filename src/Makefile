@@ -1,7 +1,5 @@
 # -*- MakeFile -*-
 sources := dmalloc.cpp dmalloc_stat.cpp dmalloc_log.cpp
-objects = $(sources:.cpp=.o)
-depends := $(objects:.o=.d)
 
 uname := $(shell uname -s)
 ifeq ($(uname), Linux)
@@ -14,6 +12,8 @@ ifeq ($(uname), Darwin)
 	sources += dmalloc_intercept_darwin.cpp
 	target = libdmalloc.dylib
 endif
+objects = $(sources:.cpp=.o)
+depends = $(objects:.o=.d)
 
 %.o:%.cpp
 	g++ -g -std=c++17 -Wall -Wextra -D $(os) -c  $<  -fPIC  -o $@

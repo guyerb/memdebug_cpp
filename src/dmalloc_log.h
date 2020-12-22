@@ -9,6 +9,7 @@
 #define dputc(x) do {} while(0)
 #endif	/* DMALLOC_DEBUG */
 
+#define ddputc(x)  putc((x), stderr)
 void dprintf( const char* format, ... );
 
 #endif	/* DMALLOC_LOG_H */
