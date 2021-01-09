@@ -234,8 +234,8 @@ void dmalloc_stat::s_agebucket_insert(std::time_t now)
   dputc('i');
   _s_agebucket_update(now);
 
-  /* the agebucket is guaranteed up to date but maybe in the future so
-     compute age ndx rather than assuming 0 */
+  /* the agebucket is guaranteed up to date but 'now' may be in the
+     past so compute age ndx rather than assuming 0 */
   int ndx = _s_agebucket_ndx(now);
   if (ndx >= 0) 
     _s_agebucket_cnt[ndx]++;

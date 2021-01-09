@@ -7,7 +7,10 @@ std::mt19937 engine;
 
 void spinner()
 {
-  std::uniform_int_distribution<int> dist(0, 8192);
+  std::uniform_int_distribution<int> dist1(0, 8192);
+  std::uniform_int_distribution<int> dist2(0, 1024);
+  std::uniform_int_distribution<int> dist3(0, 512);
+  std::uniform_int_distribution<int> dist4(0, 64);
   void *p = nullptr;
   void *p1 = nullptr;
   void *p2 = nullptr;
@@ -17,16 +20,16 @@ void spinner()
   do {
     if (i % 100000 == 0) putc('~', stderr);
 
-    if (!p) p  = malloc(dist(engine));
+    if (!p) p  = malloc(dist1(engine));
     if (p3) { free(p3); p3 = nullptr;}
 
-    if (!p1) p1 = malloc(dist(engine));
+    if (!p1) p1 = malloc(dist2(engine));
     if (p) { free(p); p = nullptr;}
 
-    if (!p2) p2 = malloc(dist(engine));
+    if (!p2) p2 = malloc(dist3(engine));
     if (p1) { free(p1); p1 = nullptr;}
 
-    if (!p3) p3 = malloc(dist(engine));
+    if (!p3) p3 = malloc(dist4(engine));
     if (p2) { free(p2); p2 = nullptr;}
 
     //    usleep(rand() % 2000000);
